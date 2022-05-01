@@ -24,12 +24,16 @@ public class Crossing {
 
     @Property()
     private boolean priorityLock;
+    
+    @Property()
+    private long validUntil;
 
-    public Crossing(String id, String[] laneIds, CrossingState state, boolean priorityLock){
+    public Crossing(String id, String[] laneIds, CrossingState state, boolean priorityLock, long validUntil){
         this.id = id;
         this.laneIds = laneIds;
         this.state = state;
         this.priorityLock = priorityLock;
+        this.validUntil = validUntil;
     }
 
     public String toJSONString() {
@@ -42,10 +46,11 @@ public class Crossing {
         CrossingState crossingState = jsonObject.getEnum(CrossingState.class, "state");
         List<Object> laneIdObjetList = jsonObject.getJSONArray("laneIds").toList();
         boolean priorityLock = jsonObject.getBoolean("priorityLock");
+        long validUntil = jsonObject.getLong("validUntil");
         ArrayList<String> laneIdList = new ArrayList<>();
         laneIdList.addAll((List<String>)(Object)laneIdObjetList);
         String[] laneIds = laneIdList.stream().toArray(String[]::new);
-        Crossing res = new Crossing(id,laneIds,crossingState,priorityLock);
+        Crossing res = new Crossing(id,laneIds,crossingState,priorityLock, validUntil);
         return res;
     }
     public String getId() {
@@ -77,6 +82,18 @@ public class Crossing {
         return priorityLock;
     }
 
+    public void setPriorityLock(boolean priorityLock) {
+        this.priorityLock = priorityLock;
+    }
+
+    public long getValidUntil() {
+        return validUntil;
+    }
+
+    public void setValidUntil(long validUntil) {
+        this.validUntil = validUntil;
+    }
+
     @Override
     public int hashCode() {
         final int prime = 31;
@@ -85,6 +102,7 @@ public class Crossing {
         result = prime * result + Arrays.hashCode(laneIds);
         result = prime * result + (priorityLock ? 1231 : 1237);
         result = prime * result + ((state == null) ? 0 : state.hashCode());
+        result = prime * result + (int) (validUntil ^ (validUntil >>> 32));
         return result;
     }
 
@@ -108,10 +126,9 @@ public class Crossing {
             return false;
         if (state != other.state)
             return false;
+        if (validUntil != other.validUntil)
+            return false;
         return true;
     }
 
-    public void setPriorityLock(boolean priorityLock) {
-        this.priorityLock = priorityLock;
-    }
 }

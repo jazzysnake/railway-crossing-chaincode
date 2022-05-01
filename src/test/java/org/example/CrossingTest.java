@@ -11,7 +11,7 @@ public class CrossingTest {
     @Test
     public void jsonSerializableCrossing(){
         String[] laneIds = {"123", "456"};
-        Crossing crossing = new Crossing("123",laneIds, CrossingState.FREE_TO_CROSS,false);
+        Crossing crossing = new Crossing("123",laneIds, CrossingState.FREE_TO_CROSS,false,1);
         String json = crossing.toJSONString();
         log.info(json);
         Crossing newCrossing = Crossing.fromJSONString(json);

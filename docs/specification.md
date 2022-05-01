@@ -10,14 +10,15 @@ Build a smart contract that manages the crossing permissions of autonomous vehic
 
 ### Railway crossing
 
-| id     | laneIds | state                   | prioritylock      |
-|--------|---------|-------------------------|-------------------|
-| string | string  | "LOCKED"/"FREE TO CROSS"| boolean           |
+| id     | laneIds | state                   | prioritylock      | validuntil |
+|--------|---------|-------------------------|-------------------|------------|
+| string | string  | "LOCKED"/"FREE TO CROSS"| boolean           | long       |
 
 - id is a  unique identifier of the crossing
 - laneIds are the lanes belonging to the crossing
 - state specifies whether the crossing can be crossed freely by the train
 - prioritylock is true when a train has requested permission to pass
+- validuntil is a timestamp that determines the validity of the free to cross state
 
 ### Lane
 
@@ -29,6 +30,16 @@ Build a smart contract that manages the crossing permissions of autonomous vehic
 - capacity is the number of cars that can use the lane at the same time
 - occupied is the number of cars currently using the lane
 - prioritylock is true when a train has requested permission to pass the crossing the lane belongs to.
+
+### CrossingPermission
+| id     | crossingid | identity | released |
+|--------|------------|----------|----------|
+| string | string     | string   | boolean  |
+
+- id in combination with the crossingid uniquely identifies the CrossingRequest
+- indentity is a sha256sum hash of the request's sender identity
+- isgranted signifies whether the the permission to cross was denied or granted 
+- released signifies whether or not the pkkk
 
 ## State Machines
 

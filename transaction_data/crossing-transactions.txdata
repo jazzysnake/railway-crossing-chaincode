@@ -1,0 +1,119 @@
+[
+    {
+        "transactionName": "crossingExists",
+        "transactionLabel": "crossingExists basic",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "createCrossing",
+        "transactionLabel": "createCrossing basic",
+        "arguments": [
+            "001",
+            ["01"],
+            1
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "readCrossing",
+        "transactionLabel": "readCrossing basic",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "updateCrossing",
+        "transactionLabel": "updateCrossing FREE_TO_CROSS",
+        "arguments": [
+            "001",
+            ["some other value"],
+            "FREE_TO_CROSS",
+            "false"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "updateCrossing",
+        "transactionLabel": "updateCrossing LOCKED",
+        "arguments": [
+            "001",
+            ["some other value"],
+            "LOCKED",
+            "false"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "deleteCrossing",
+        "transactionLabel": "deleteCrossing basic",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "laneExists",
+        "transactionLabel": "laneExists basic",
+        "arguments": [
+            "01",
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "createLane",
+        "transactionLabel": "createLane basic",
+        "arguments": [
+            "01",
+            "001",
+            1
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "readLane",
+        "transactionLabel": "readLane basic",
+        "arguments": [
+            "01",
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "updateLane",
+        "transactionLabel": "updateLane priorityLock ON",
+        "arguments": [
+            "01",
+            "001",
+            1,
+            0,
+            "true"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "updateLane",
+        "transactionLabel": "updateLane priorityLock OFF",
+        "arguments": [
+            "01",
+            "001",
+            1,
+            0,
+            "true"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "deleteLane",
+        "transactionLabel": "deleteLane basic",
+        "arguments": [
+            "01",
+            "001"
+        ],
+        "transientData": {}
+    }
+]

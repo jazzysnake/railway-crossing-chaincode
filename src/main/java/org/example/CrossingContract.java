@@ -27,7 +27,7 @@ public class CrossingContract implements ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public boolean crossingExists(final Context ctx, final String crossingId) {
-        final String compKey = createCompKey(ctx, "CROSSING", crossingId);
+        final String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
         final byte[] buffer = ctx.getStub().getState(compKey);
         return (buffer != null && buffer.length > 0);
     }
@@ -41,7 +41,7 @@ public class CrossingContract implements ContractInterface {
         final Crossing asset = new Crossing(crossingId, laneIds, CrossingState.FREE_TO_CROSS, false,
                 ctx.getStub().getTxTimestamp().toEpochMilli() + 300 * 60);
         createLanes(ctx, laneIds, crossingId, laneCapacity);
-        final String compKey = createCompKey(ctx, "CROSSING", crossingId);
+        final String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
         ctx.getStub().putState(compKey, asset.toJSONString().getBytes(UTF_8));
         return asset;
     }
@@ -52,9 +52,8 @@ public class CrossingContract implements ContractInterface {
         if (!exists) {
             throw new ChaincodeException("The asset " + crossingId + " does not exist");
         }
-        final String compKey = createCompKey(ctx, "CROSSING", crossingId);
-        final Crossing newAsset = Crossing.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
-        return newAsset;
+        final String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
+        return Crossing.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
     }
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
@@ -66,7 +65,7 @@ public class CrossingContract implements ContractInterface {
         }
         final Crossing asset = new Crossing(crossingId, laneIds, CrossingState.fromString(crossingState), priorityLock,
                 validUntil);
-        final String compKey = createCompKey(ctx, "CROSSING", crossingId);
+        final String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
         ctx.getStub().putState(compKey, asset.toJSONString().getBytes(UTF_8));
         return asset;
     }
@@ -79,7 +78,7 @@ public class CrossingContract implements ContractInterface {
         }
         final Crossing crossing = readCrossing(ctx, crossingId);
         Arrays.stream(crossing.getLaneIds()).forEach((laneId -> deleteLane(ctx, laneId, crossingId)));
-        final String compKey = createCompKey(ctx, "CROSSING", crossingId);
+        final String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
         ctx.getStub().delState(compKey);
     }
 
@@ -89,7 +88,7 @@ public class CrossingContract implements ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public boolean laneExists(final Context ctx, final String laneId, final String crossingId) {
-        final String compKey = createCompKey(ctx, "LANE", laneId, crossingId);
+        final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
         final byte[] buffer = ctx.getStub().getState(compKey);
         return (buffer != null && buffer.length > 0);
     }
@@ -113,7 +112,7 @@ public class CrossingContract implements ContractInterface {
 
         updateCrossing(ctx, crossingId, laneIds, crossing.getState().name(), crossing.isPriorityLock(),
                 crossing.getValidUntil());
-        final String compKey = createCompKey(ctx, "LANE", laneId, crossingId);
+        final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
         ctx.getStub().putState(compKey, lane.toJSONString().getBytes(UTF_8));
         return lane;
     }
@@ -128,7 +127,7 @@ public class CrossingContract implements ContractInterface {
         Arrays.stream(laneIds).forEach(laneId -> {
             final Lane lane = new Lane(laneId, crossingId, capacity, 0, false);
             lanes.add(lane);
-            final String compKey = createCompKey(ctx, "LANE", laneId, crossingId);
+            final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
             ctx.getStub().putState(compKey, lane.toJSONString().getBytes(UTF_8));
         });
         return lanes.toArray(new Lane[laneIds.length]);
@@ -140,7 +139,7 @@ public class CrossingContract implements ContractInterface {
         if (!exists) {
             throw new ChaincodeException("The asset " + laneId + " " + crossingId + " does not exist");
         }
-        final String compKey = createCompKey(ctx, "LANE", laneId, crossingId);
+        final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
         final Lane newAsset = Lane.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
         return newAsset;
     }
@@ -161,7 +160,7 @@ public class CrossingContract implements ContractInterface {
         }
         // TODO update crossing?
         final Lane asset = new Lane(laneId, crossingId, capacity, occupied, priorityLock);
-        final String compKey = createCompKey(ctx, "LANE", laneId, crossingId);
+        final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
         ctx.getStub().putState(compKey, asset.toJSONString().getBytes(UTF_8));
         return asset;
     }
@@ -178,15 +177,12 @@ public class CrossingContract implements ContractInterface {
         }
         final Crossing crossing = readCrossing(ctx, crossingId);
         final String[] remainingLanes = Arrays.stream(crossing.getLaneIds()).filter((t -> {
-            if (t.equals(laneId)) {
-                return false;
-            }
-            return true;
+            return !t.equals(laneId);
         })).toArray(String[]::new);
         // TODO lock status might change upon update
         updateCrossing(ctx, crossingId, remainingLanes, crossing.getState().name(), crossing.isPriorityLock(),
                 crossing.getValidUntil());
-        final String compKey = createCompKey(ctx, "LANE", laneId, crossingId);
+        final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
         ctx.getStub().delState(compKey);
     }
 

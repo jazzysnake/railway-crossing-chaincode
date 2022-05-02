@@ -21,6 +21,8 @@ public class Lane {
     
     @Property()
     private boolean priorityLock;
+
+    public static final String TYPE = "LANE";
     
     public Lane(String id, String crossingId, int capacity, int occupied, boolean priorityLock){
         this.id = id;

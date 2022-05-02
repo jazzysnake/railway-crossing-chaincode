@@ -27,6 +27,8 @@ public class Crossing {
     
     @Property()
     private long validUntil;
+    
+    public static final String TYPE = "CROSSING";
 
     public Crossing(String id, String[] laneIds, CrossingState state, boolean priorityLock, long validUntil){
         this.id = id;
@@ -50,8 +52,7 @@ public class Crossing {
         ArrayList<String> laneIdList = new ArrayList<>();
         laneIdList.addAll((List<String>)(Object)laneIdObjetList);
         String[] laneIds = laneIdList.stream().toArray(String[]::new);
-        Crossing res = new Crossing(id,laneIds,crossingState,priorityLock, validUntil);
-        return res;
+        return new Crossing(id,laneIds,crossingState,priorityLock, validUntil);
     }
     public String getId() {
         return id;

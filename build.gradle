@@ -4,6 +4,7 @@
 plugins {
     id 'com.github.johnrengelman.shadow' version '5.2.0'
     id 'java'
+    id "org.sonarqube" version "3.3"
 }
 
 version '0.0.1'

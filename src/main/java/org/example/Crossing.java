@@ -45,8 +45,7 @@ public class Crossing {
         ArrayList<String> laneIdList = new ArrayList<>();
         laneIdList.addAll((List<String>)(Object)laneIdObjetList);
         String[] laneIds = laneIdList.stream().toArray(String[]::new);
-        Crossing res = new Crossing(id,laneIds,crossingState,priorityLock);
-        return res;
+        return new Crossing(id,laneIds,crossingState,priorityLock);
     }
     public String getId() {
         return id;

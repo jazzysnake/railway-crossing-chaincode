@@ -5,16 +5,16 @@ import org.apache.log4j.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class LaneTest {
+class LaneTest {
     public static Logger log = Logger.getLogger(CrossingContractTest.class.getName());
 
     @Test
-    public void jsonSerializableLane(){
+    void jsonSerializableLane(){
         Lane lane = new Lane("123", "123", 1, 0, false);
         String json = lane.toJSONString();
         log.info(json);
         Lane newLane = Lane.fromJSONString(json);
         log.info(newLane.toJSONString());
-        assertTrue(lane.equals(newLane));
+        assertEquals(lane, newLane);
     }
 }

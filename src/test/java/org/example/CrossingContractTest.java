@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 
 
-public final class CrossingContractTest {
+final class CrossingContractTest {
     public static Logger log = Logger.getLogger(CrossingContractTest.class.getName());
 
     //@Nested

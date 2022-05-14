@@ -36,7 +36,7 @@ public class CrossingContract implements ContractInterface {
     public Crossing createCrossing(final Context ctx, final String crossingId, final String[] laneIds, final int laneCapacity) {
         final boolean exists = crossingExists(ctx, crossingId);
         if (exists) {
-            throw new ChaincodeException("The asset " + crossingId + " already exists");
+            throwAssetAlreadyExistsException(crossingId);
         }
         final Crossing asset = new Crossing(crossingId, laneIds, CrossingState.FREE_TO_CROSS, false,
                 ctx.getStub().getTxTimestamp().toEpochMilli() + 300 * 60);
@@ -50,10 +50,10 @@ public class CrossingContract implements ContractInterface {
     public Crossing readCrossing(final Context ctx, final String crossingId) {
         final boolean exists = crossingExists(ctx, crossingId);
         if (!exists) {
-            throw new ChaincodeException("The asset " + crossingId + " does not exist");
+            throwAssetDoesntExistException(crossingId);
         }
-        final String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
-        return Crossing.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
+        String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
+        return Crossing.fromJSONString(new String(ctx.getStub().getState(compKey),UTF_8));
     }
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
@@ -61,7 +61,7 @@ public class CrossingContract implements ContractInterface {
             final boolean priorityLock, final long validUntil) {
         final boolean exists = crossingExists(ctx, crossingId);
         if (!exists) {
-            throw new ChaincodeException("The asset " + crossingId + " does not exist");
+            throwAssetDoesntExistException(crossingId);
         }
         final Crossing asset = new Crossing(crossingId, laneIds, CrossingState.fromString(crossingState), priorityLock,
                 validUntil);
@@ -74,11 +74,11 @@ public class CrossingContract implements ContractInterface {
     public void deleteCrossing(final Context ctx, final String crossingId) {
         final boolean exists = crossingExists(ctx, crossingId);
         if (!exists) {
-            throw new ChaincodeException("The asset " + crossingId + " does not exist");
+            throwAssetDoesntExistException(crossingId);
         }
-        final Crossing crossing = readCrossing(ctx, crossingId);
-        Arrays.stream(crossing.getLaneIds()).forEach((laneId -> deleteLane(ctx, laneId, crossingId)));
-        final String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
+        Crossing crossing = readCrossing(ctx, crossingId);
+        Arrays.stream(crossing.getLaneIds()).forEach((laneId-> deleteLane(ctx, laneId, crossingId)));
+        String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
         ctx.getStub().delState(compKey);
     }
 
@@ -100,19 +100,18 @@ public class CrossingContract implements ContractInterface {
         final boolean exists = laneExists(ctx, laneId, crossingId);
         final boolean crossingExists = crossingExists(ctx, crossingId);
         if (exists) {
-            throw new ChaincodeException("The asset " + laneId + " " + crossingId + " already exists");
+            throwAssetDoesntExistException(laneId + " " + crossingId);
         }
         if (!crossingExists) {
-            throw new ChaincodeException("The specified crossing with id " + crossingId + " doesn't exist");
+            throwAssetDoesntExistException(crossingId);
         }
         final Crossing crossing = readCrossing(ctx, crossingId);
         final Lane lane = new Lane(laneId, crossingId, capacity, 0, false);
         final String[] laneIds = Arrays.copyOf(crossing.getLaneIds(), crossing.getLaneIds().length + 1);
         laneIds[laneIds.length - 1] = laneId;
 
-        updateCrossing(ctx, crossingId, laneIds, crossing.getState().name(), crossing.isPriorityLock(),
-                crossing.getValidUntil());
-        final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
+        updateCrossing(ctx, crossingId, laneIds, crossing.getState().name(), crossing.isPriorityLock(),0);
+        String compKey = createCompKey(ctx, Lane.TYPE,laneId, crossingId);
         ctx.getStub().putState(compKey, lane.toJSONString().getBytes(UTF_8));
         return lane;
     }
@@ -120,7 +119,7 @@ public class CrossingContract implements ContractInterface {
     private Lane[] createLanes(final Context ctx, final String[] laneIds, final String crossingId, final int capacity) {
         Arrays.stream(laneIds).forEach(laneId -> {
             if (laneExists(ctx, laneId, crossingId)) {
-                throw new ChaincodeException("The specified laneId " + laneId + " already exists");
+                throwAssetAlreadyExistsException(laneId);
             }
         });
         final ArrayList<Lane> lanes = new ArrayList<>(laneIds.length);
@@ -137,7 +136,7 @@ public class CrossingContract implements ContractInterface {
     public Lane readLane(final Context ctx, final String laneId, final String crossingId) {
         final boolean exists = laneExists(ctx, laneId, crossingId);
         if (!exists) {
-            throw new ChaincodeException("The asset " + laneId + " " + crossingId + " does not exist");
+            throwAssetDoesntExistException(laneId + " " + crossingId);
         }
         final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
         final Lane newAsset = Lane.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
@@ -153,10 +152,10 @@ public class CrossingContract implements ContractInterface {
         final boolean exists = laneExists(ctx, laneId, crossingId);
         final boolean crossingExists = crossingExists(ctx, crossingId);
         if (!exists) {
-            throw new ChaincodeException("The asset " + laneId + " " + crossingId + " does not exist");
+            throwAssetDoesntExistException(laneId + " " + crossingId);
         }
         if (!crossingExists) {
-            throw new ChaincodeException("The specified crossing with id " + crossingId + " doesn't exist");
+            throwAssetDoesntExistException(crossingId);
         }
         // TODO update crossing?
         final Lane asset = new Lane(laneId, crossingId, capacity, occupied, priorityLock);
@@ -170,20 +169,25 @@ public class CrossingContract implements ContractInterface {
         final boolean exists = laneExists(ctx, laneId, crossingId);
         final boolean crossingExists = crossingExists(ctx, crossingId);
         if (!exists) {
-            throw new ChaincodeException("The asset " + laneId + " " + crossingId + " does not exist");
+            throwAssetDoesntExistException(laneId+" "+crossingId);
         }
         if (!crossingExists) {
-            throw new ChaincodeException("The specified crossing with id " + crossingId + " doesn't exist");
+            throwAssetDoesntExistException(crossingId);
         }
         final Crossing crossing = readCrossing(ctx, crossingId);
-        final String[] remainingLanes = Arrays.stream(crossing.getLaneIds()).filter((t -> {
-            return !t.equals(laneId);
-        })).toArray(String[]::new);
-        // TODO lock status might change upon update
-        updateCrossing(ctx, crossingId, remainingLanes, crossing.getState().name(), crossing.isPriorityLock(),
-                crossing.getValidUntil());
         final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
+        String[] remainingLanes = Arrays.stream(crossing.getLaneIds()).filter((t -> !t.equals(laneId))).toArray(String[]::new);
+        //TODO lock status might change upon update
+        updateCrossing(ctx, crossingId, remainingLanes, crossing.getState().name(), crossing.isPriorityLock(),0L);
         ctx.getStub().delState(compKey);
+    }
+    
+    private void throwAssetAlreadyExistsException(String assetId){
+        throw new ChaincodeException("The specified asset "+assetId+" already exists");
+    }
+
+    private void throwAssetDoesntExistException(String assetId){
+        throw new ChaincodeException("The specified asset "+assetId+" doesn't exist");
     }
 
 }

@@ -107,9 +107,7 @@ public class CrossingContract implements ContractInterface {
     }
 
     private Lane[] createLanes(final Context ctx, final String[] laneIds, final String crossingId, final int capacity) {
-        Arrays.stream(laneIds).forEach(laneId -> 
-            assertLaneExists(ctx, laneId, crossingId, false)
-        );
+        Arrays.stream(laneIds).forEach(laneId -> assertLaneExists(ctx, laneId, crossingId, false));
         final ArrayList<Lane> lanes = new ArrayList<>(laneIds.length);
         Arrays.stream(laneIds).forEach(laneId -> {
             final Lane lane = new Lane(laneId, crossingId, capacity, 0, false);
@@ -169,12 +167,10 @@ public class CrossingContract implements ContractInterface {
         Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.TRAIN, false,
                 false);
 
-        Arrays.stream(crossing.getLaneIds()).forEach(laneId ->
-            lockLane(ctx, laneId, crossingId, true)
-        );
+        Arrays.stream(crossing.getLaneIds()).forEach(laneId -> lockLane(ctx, laneId, crossingId, true));
 
         if (crossing.getState() != CrossingState.FREE_TO_CROSS ||
-            crossing.getValidUntil()<ctx.getStub().getTxTimestamp().getEpochSecond()) {
+                crossing.getValidUntil() < ctx.getStub().getTxTimestamp().getEpochSecond()) {
 
             ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
             return request;
@@ -201,9 +197,8 @@ public class CrossingContract implements ContractInterface {
             return request;
         }
 
-        String[] freeLanes = Arrays.stream(crossing.getLaneIds()).filter(lane -> 
-            readLane(ctx, lane, crossingId).isFree()
-        ).toArray(String[]::new);
+        String[] freeLanes = Arrays.stream(crossing.getLaneIds())
+                .filter(lane -> readLane(ctx, lane, crossingId).isFree()).toArray(String[]::new);
 
         if (freeLanes.length == 0) {
             log.warning("Crossing request " + this.requestId + " denied because all lanes are full");
@@ -283,16 +278,17 @@ public class CrossingContract implements ContractInterface {
     }
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Crossing renewFreeToCrossValidity(final Context ctx, final String crossingId){
+    public Crossing renewFreeToCrossValidity(final Context ctx, final String crossingId) {
         assertCrossingExists(ctx, crossingId, true);
         Crossing crossing = readCrossing(ctx, crossingId);
 
-        if (crossing.getState()!=CrossingState.FREE_TO_CROSS) {
+        if (crossing.getState() != CrossingState.FREE_TO_CROSS) {
             throw new ChaincodeException("Crossing must be in FREE_TO_CROSS state for this operation");
         }
 
         crossing.setValidUntil(calcValidity(ctx));
-        updateCrossing(ctx, crossingId, crossing.getLaneIds(), crossing.getState().name(), crossing.isPriorityLock(), crossing.getValidUntil());
+        updateCrossing(ctx, crossingId, crossing.getLaneIds(), crossing.getState().name(), crossing.isPriorityLock(),
+                crossing.getValidUntil());
 
         return crossing;
     }
@@ -369,6 +365,18 @@ public class CrossingContract implements ContractInterface {
 
         if (!exists) {
             throwAssetDoesntExistException(requestId + " " + crossingId + " " + laneId);
+        }
+    }
+    
+    private void assertRailwayOrg(final Context ctx){
+        if(!ctx.getClientIdentity().getMSPID().equals("RailwayOrg")){
+            throw new ChaincodeException("Must be part of RailwayOrg to perform this operation");
+        }
+    }
+
+    private void assertVechicleOwnerOrg(final Context ctx){
+        if(!ctx.getClientIdentity().getMSPID().equals("VehicleOwnerOrg")){
+            throw new ChaincodeException("Must be part of VehicleOwnerOrg to perform this operation");
         }
     }
 }

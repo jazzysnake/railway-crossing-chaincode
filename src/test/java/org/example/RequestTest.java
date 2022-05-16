@@ -12,7 +12,7 @@ class RequestTest {
 
     @Test
     void jsonSerializableRequest() {
-        Request request = new Request("0001", "01", "01", "train", true);
+        Request request = new Request("0001", "01", "01", RequesterRole.TRAIN, true, true);
         String json = request.toJSONString();
         log.info(json);
         Request newRequest = Request.fromJSONString(json);

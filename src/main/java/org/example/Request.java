@@ -10,6 +10,8 @@ import org.json.JSONObject;
 
 @DataType()
 public class Request {
+    
+    public static final String TYPE = "REQUEST";
 
     @Property()
     private String id;
@@ -21,18 +23,21 @@ public class Request {
     private String laneId;
 
     @Property()
-    private String roleOfRequester;
+    private RequesterRole roleOfRequester;
 
     @Property()
-    private boolean priorityLock;
+    private boolean granted;
+    
+    @Property()
+    private boolean active;
 
-    public Request(final String id, final String crossingId, final String laneId, final String roleOfRequester,
-            final boolean priorityLock) {
+    public Request(final String id, final String crossingId, final String laneId, final RequesterRole roleOfRequester,final boolean granted, final boolean active){
         this.id = id;
         this.crossingId = crossingId;
         this.laneId = laneId;
         this.roleOfRequester = roleOfRequester;
-        this.priorityLock = priorityLock;
+        this.granted = granted;
+        this.active = active;
     }
 
     public String toJSONString() {
@@ -44,9 +49,10 @@ public class Request {
         final String id = jsonObject.getString("id");
         final String crossingId = jsonObject.getString("crossingId");
         final String laneId = jsonObject.getString("laneId");
-        final String roleOfRequester = jsonObject.getString("roleOfRequester");
-        final boolean priorityLock = jsonObject.getBoolean("priorityLock");
-        return new Request(id, crossingId, laneId, roleOfRequester, priorityLock);
+        final RequesterRole roleOfRequester = jsonObject.getEnum(RequesterRole.class,"roleOfRequester");
+        final boolean isGranted = jsonObject.getBoolean("granted");
+        final boolean isActive = jsonObject.getBoolean("active");
+        return new Request(id, crossingId, laneId, roleOfRequester, isGranted, isActive);
     }
 
     public String getId() {
@@ -73,30 +79,40 @@ public class Request {
         this.laneId = laneId;
     }
 
-    public String getRoleOfRequester() {
+
+    public RequesterRole getRoleOfRequester() {
         return roleOfRequester;
     }
 
-    public void setRoleOfRequester(String roleOfRequester) {
+    public void setRoleOfRequester(RequesterRole roleOfRequester) {
         this.roleOfRequester = roleOfRequester;
     }
 
-    public boolean isPriorityLock() {
-        return priorityLock;
+    public boolean isGranted() {
+        return granted;
     }
 
-    public void setPriorityLock(boolean priorityLock) {
-        this.priorityLock = priorityLock;
+    public void setGranted(boolean isGranted) {
+        this.granted = isGranted;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean isActive) {
+        this.active = isActive;
     }
 
     @Override
     public int hashCode() {
         final int prime = 31;
         int result = 1;
+        result = prime * result + (active ? 1231 : 1237);
         result = prime * result + ((crossingId == null) ? 0 : crossingId.hashCode());
+        result = prime * result + (granted ? 1231 : 1237);
         result = prime * result + ((id == null) ? 0 : id.hashCode());
         result = prime * result + ((laneId == null) ? 0 : laneId.hashCode());
-        result = prime * result + (priorityLock ? 1231 : 1237);
         result = prime * result + ((roleOfRequester == null) ? 0 : roleOfRequester.hashCode());
         return result;
     }
@@ -110,10 +126,14 @@ public class Request {
         if (getClass() != obj.getClass())
             return false;
         Request other = (Request) obj;
+        if (active != other.active)
+            return false;
         if (crossingId == null) {
             if (other.crossingId != null)
                 return false;
         } else if (!crossingId.equals(other.crossingId))
+            return false;
+        if (granted != other.granted)
             return false;
         if (id == null) {
             if (other.id != null)
@@ -125,12 +145,7 @@ public class Request {
                 return false;
         } else if (!laneId.equals(other.laneId))
             return false;
-        if (priorityLock != other.priorityLock)
-            return false;
-        if (roleOfRequester == null) {
-            if (other.roleOfRequester != null)
-                return false;
-        } else if (!roleOfRequester.equals(other.roleOfRequester))
+        if (roleOfRequester != other.roleOfRequester)
             return false;
         return true;
     }

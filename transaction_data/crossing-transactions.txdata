@@ -30,9 +30,10 @@
         "transactionLabel": "updateCrossing FREE_TO_CROSS",
         "arguments": [
             "001",
-            ["some other value"],
+            [],
             "FREE_TO_CROSS",
-            "false"
+            false,
+            123
         ],
         "transientData": {}
     },

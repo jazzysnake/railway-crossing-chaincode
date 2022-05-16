@@ -7,7 +7,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
 
+import org.hyperledger.fabric.Logger;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.Contact;
@@ -22,7 +24,12 @@ import org.hyperledger.fabric.shim.ChaincodeException;
 @Default
 public class CrossingContract implements ContractInterface {
     private static final int CROSSING_VALIDITY_DURATION_S = 60;
-    public CrossingContract() {}
+    private static final Random rand = new Random(0);
+    private long requestId = 0;
+    private static final Logger log = Logger.getLogger(CrossingContract.class);
+
+    public CrossingContract() {
+    }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public boolean crossingExists(final Context ctx, final String crossingId) {
@@ -32,7 +39,8 @@ public class CrossingContract implements ContractInterface {
     }
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Crossing createCrossing(final Context ctx, final String crossingId, final String[] laneIds, final int laneCapacity) {
+    public Crossing createCrossing(final Context ctx, final String crossingId, final String[] laneIds,
+            final int laneCapacity) {
         assertCrossingExists(ctx, crossingId, false);
         final Crossing asset = new Crossing(crossingId, laneIds, CrossingState.FREE_TO_CROSS, false,
                 ctx.getStub().getTxTimestamp().toEpochMilli() + 300 * 60);
@@ -46,11 +54,12 @@ public class CrossingContract implements ContractInterface {
     public Crossing readCrossing(final Context ctx, final String crossingId) {
         assertCrossingExists(ctx, crossingId, true);
         String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
-        return Crossing.fromJSONString(new String(ctx.getStub().getState(compKey),UTF_8));
+        return Crossing.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
     }
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Crossing updateCrossing(final Context ctx, final String crossingId, final String[] laneIds, final String crossingState,
+    public Crossing updateCrossing(final Context ctx, final String crossingId, final String[] laneIds,
+            final String crossingState,
             final boolean priorityLock, final long validUntil) {
         assertCrossingExists(ctx, crossingId, true);
         final Crossing asset = new Crossing(crossingId, laneIds, CrossingState.fromString(crossingState), priorityLock,
@@ -64,7 +73,7 @@ public class CrossingContract implements ContractInterface {
     public void deleteCrossing(final Context ctx, final String crossingId) {
         assertCrossingExists(ctx, crossingId, true);
         Crossing crossing = readCrossing(ctx, crossingId);
-        Arrays.stream(crossing.getLaneIds()).forEach((laneId-> deleteLane(ctx, laneId, crossingId)));
+        Arrays.stream(crossing.getLaneIds()).forEach((laneId -> deleteLane(ctx, laneId, crossingId)));
         String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
         ctx.getStub().delState(compKey);
     }
@@ -91,16 +100,17 @@ public class CrossingContract implements ContractInterface {
         final String[] laneIds = Arrays.copyOf(crossing.getLaneIds(), crossing.getLaneIds().length + 1);
         laneIds[laneIds.length - 1] = laneId;
 
-        updateCrossing(ctx, crossingId, laneIds, crossing.getState().name(), crossing.isPriorityLock(),calcValidity(ctx));
-        String compKey = createCompKey(ctx, Lane.TYPE,laneId, crossingId);
+        updateCrossing(ctx, crossingId, laneIds, crossing.getState().name(), crossing.isPriorityLock(),
+                calcValidity(ctx));
+        String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
         ctx.getStub().putState(compKey, lane.toJSONString().getBytes(UTF_8));
         return lane;
     }
 
     private Lane[] createLanes(final Context ctx, final String[] laneIds, final String crossingId, final int capacity) {
-        Arrays.stream(laneIds).forEach(laneId -> {
-            assertLaneExists(ctx, laneId, crossingId, false);
-        });
+        Arrays.stream(laneIds).forEach(laneId -> 
+            assertLaneExists(ctx, laneId, crossingId, false)
+        );
         final ArrayList<Lane> lanes = new ArrayList<>(laneIds.length);
         Arrays.stream(laneIds).forEach(laneId -> {
             final Lane lane = new Lane(laneId, crossingId, capacity, 0, false);
@@ -110,6 +120,7 @@ public class CrossingContract implements ContractInterface {
         });
         return lanes.toArray(new Lane[laneIds.length]);
     }
+
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public Lane readLane(final Context ctx, final String laneId, final String crossingId) {
         assertLaneExists(ctx, laneId, crossingId, true);
@@ -118,7 +129,8 @@ public class CrossingContract implements ContractInterface {
     }
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Lane updateLane(final Context ctx, final String laneId, final String crossingId, final int capacity, final int occupied,
+    public Lane updateLane(final Context ctx, final String laneId, final String crossingId, final int capacity,
+            final int occupied,
             final boolean priorityLock) {
         if (occupied > capacity) {
             throw new IllegalArgumentException("Capacity can't be a lower value than occupied");
@@ -138,39 +150,208 @@ public class CrossingContract implements ContractInterface {
         assertLaneExists(ctx, laneId, crossingId, true);
         final Crossing crossing = readCrossing(ctx, crossingId);
         final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
-        String[] remainingLanes = Arrays.stream(crossing.getLaneIds()).filter((t -> !t.equals(laneId))).toArray(String[]::new);
-        //TODO lock status might change upon update
-        updateCrossing(ctx, crossingId, remainingLanes, crossing.getState().name(), crossing.isPriorityLock(),calcValidity(ctx));
+        String[] remainingLanes = Arrays.stream(crossing.getLaneIds()).filter((t -> !t.equals(laneId)))
+                .toArray(String[]::new);
+        // TODO lock status might change upon update
+        updateCrossing(ctx, crossingId, remainingLanes, crossing.getState().name(), crossing.isPriorityLock(),
+                calcValidity(ctx));
         ctx.getStub().delState(compKey);
     }
-    
-    private void throwAssetAlreadyExistsException(String assetId){
-        throw new ChaincodeException("The specified asset "+assetId+" already exists");
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public Request requestTrainCrossing(final Context ctx, final String crossingId) {
+        assertCrossingExists(ctx, crossingId, true);
+        Crossing crossing = readCrossing(ctx, crossingId);
+
+        updateCrossing(ctx, crossingId, crossing.getLaneIds(), CrossingState.LOCKED.name(), true, 0L);
+
+        requestId++;
+        String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, crossingId, "N/A");
+        Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.TRAIN, false,
+                false);
+
+        Arrays.stream(crossing.getLaneIds()).forEach(laneId ->
+            lockLane(ctx, laneId, crossingId, true)
+        );
+
+        if (crossing.getState() != CrossingState.FREE_TO_CROSS) {
+            ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
+            return request;
+        }
+
+        request.setActive(true);
+        request.setGranted(true);
+        ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
+        return request;
     }
 
-    private void throwAssetDoesntExistException(String assetId){
-        throw new ChaincodeException("The specified asset "+assetId+" doesn't exist");
-    }
-    
-    private long calcValidity(final Context ctx){
-        return ctx.getStub().getTxTimestamp().getEpochSecond()+CrossingContract.CROSSING_VALIDITY_DURATION_S;
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public Request requestCarCrossing(final Context ctx, final String crossingId) {
+        assertCrossingExists(ctx, crossingId, true);
+        Crossing crossing = readCrossing(ctx, crossingId);
+        this.requestId++;
+        String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, crossingId, "N/A");
+        if (crossing.isPriorityLock()) {
+            log.warning("Crossing request " + this.requestId + " denied because of priorityLock");
+            Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.CAR, false,
+                    false);
+
+            ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
+            return request;
+        }
+
+        String[] freeLanes = Arrays.stream(crossing.getLaneIds()).filter(lane -> 
+            readLane(ctx, lane, crossingId).isFree()
+        ).toArray(String[]::new);
+
+        if (freeLanes.length == 0) {
+            log.warning("Crossing request " + this.requestId + " denied because all lanes are full");
+            Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.CAR, false,
+                    false);
+            ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
+            return request;
+        }
+
+        int random = rand.nextInt(freeLanes.length);
+
+        String laneId = freeLanes[random];
+        lockLane(ctx, laneId, crossingId, false);
+        updateCrossing(ctx, crossingId, crossing.getLaneIds(), CrossingState.LOCKED.name(), false, 0L);
+        Request request = new Request("" + this.requestId, crossingId, laneId, RequesterRole.CAR, true,
+                true);
+        compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, crossingId, laneId);
+        log.info("Crossing request " + this.requestId + " successful");
+        ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
+        return request;
     }
 
-    private void assertCrossingExists(final Context ctx, final String id, boolean shouldExist){
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public void releaseTrainPermission(final Context ctx, final long requestId, final String crossingId) {
+        assertCrossingExists(ctx, crossingId, true);
+        assertRequestExists(ctx, requestId, "N/A", crossingId);
+        // TODO check caller identity
+        String compKey = createCompKey(ctx, Request.TYPE, "" + requestId, crossingId, "N/A");
+        Request request = Request.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
+        request.setActive(false);
+
+        Crossing crossing = readCrossing(ctx, crossingId);
+        Lane[] lanes = Arrays.stream(crossing.getLaneIds()).map(l -> readLane(ctx, l, crossingId)).toArray(Lane[]::new);
+        Arrays.stream(lanes).forEach(l -> l.setPriorityLock(false));
+
+        Lane[] freeLanes = Arrays.stream(lanes).filter(Lane::isFree).toArray(Lane[]::new);
+        if (freeLanes.length == lanes.length) {
+            updateCrossing(ctx, crossingId, crossing.getLaneIds(), CrossingState.FREE_TO_CROSS.name(), false,
+                    calcValidity(ctx));
+        }
+        Arrays.stream(lanes).forEach(l -> unLockLane(ctx, l.getId(), crossingId, true));
+
+        ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
+    }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public void releaseCarPermission(final Context ctx, final long requestId, final String crossingId,
+            final String laneId) {
+        assertCrossingExists(ctx, crossingId, true);
+        assertLaneExists(ctx, laneId, crossingId, true);
+        assertRequestExists(ctx, requestId, laneId, crossingId);
+
+        // TODO check caller identity
+        String compKey = createCompKey(ctx, Request.TYPE, "" + requestId, crossingId, laneId);
+        Request request = Request.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
+        request.setActive(false);
+
+        Crossing crossing = readCrossing(ctx, crossingId);
+        Lane[] lanes = Arrays.stream(crossing.getLaneIds()).map(l -> readLane(ctx, l, crossingId)).toArray(Lane[]::new);
+        for (int i = 0; i < lanes.length; i++) {
+            if (lanes[i].getId().equals(laneId)) {
+                lanes[i].setOccupied(lanes[i].getOccupied() - 1);
+                updateLane(ctx, laneId, crossingId, lanes[i].getCapacity(), lanes[i].getOccupied(),
+                        lanes[i].isPriorityLock());
+                break;
+            }
+        }
+
+        Lane[] freeLanes = Arrays.stream(lanes).filter(Lane::isFree).toArray(Lane[]::new);
+        if (freeLanes.length == lanes.length) {
+            updateCrossing(ctx, crossingId, crossing.getLaneIds(), CrossingState.FREE_TO_CROSS.name(), false,
+                    calcValidity(ctx));
+        }
+
+        ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
+    }
+
+    private Lane lockLane(final Context ctx, final String laneId, final String crossingId, final boolean priorityLock) {
+        assertCrossingExists(ctx, crossingId, true);
+        assertLaneExists(ctx, laneId, crossingId, true);
+        Lane lane = readLane(ctx, laneId, crossingId);
+
+        if (priorityLock) {
+            lane.setPriorityLock(priorityLock);
+        } else if (lane.getCapacity() <= lane.getOccupied()) {
+            throw new ChaincodeException("Lane is already fully occupied");
+        } else {
+            lane.setOccupied(lane.getOccupied() + 1);
+        }
+        final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
+        ctx.getStub().putState(compKey, lane.toJSONString().getBytes(UTF_8));
+        return lane;
+    }
+
+    private Lane unLockLane(final Context ctx, final String laneId, final String crossingId,
+            final boolean priorityLock) {
+        assertCrossingExists(ctx, crossingId, true);
+        assertLaneExists(ctx, laneId, crossingId, true);
+        Lane lane = readLane(ctx, laneId, crossingId);
+
+        if (priorityLock) {
+            lane.setPriorityLock(false);
+        } else {
+            lane.setOccupied(lane.getOccupied() - 1);
+        }
+        String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
+        ctx.getStub().putState(compKey, lane.toJSONString().getBytes(UTF_8));
+        return lane;
+    }
+
+    private void throwAssetAlreadyExistsException(String assetId) {
+        throw new ChaincodeException("The specified asset " + assetId + " already exists");
+    }
+
+    private void throwAssetDoesntExistException(String assetId) {
+        throw new ChaincodeException("The specified asset " + assetId + " doesn't exist");
+    }
+
+    private long calcValidity(final Context ctx) {
+        return ctx.getStub().getTxTimestamp().getEpochSecond() + CrossingContract.CROSSING_VALIDITY_DURATION_S;
+    }
+
+    private void assertCrossingExists(final Context ctx, final String id, boolean shouldExist) {
         final boolean exist = crossingExists(ctx, id);
         if (shouldExist && !exist) {
             throwAssetDoesntExistException(id);
-        }else if(!shouldExist && exist){
+        } else if (!shouldExist && exist) {
             throwAssetAlreadyExistsException(id);
         }
     }
 
-    private void assertLaneExists(final Context ctx, final String laneId, final String crossingId,boolean shouldExist){
+    private void assertLaneExists(final Context ctx, final String laneId, final String crossingId,
+            boolean shouldExist) {
         final boolean exist = laneExists(ctx, laneId, crossingId);
         if (shouldExist && !exist) {
             throwAssetDoesntExistException(laneId + " " + crossingId);
-        }else if(!shouldExist && exist){
+        } else if (!shouldExist && exist) {
             throwAssetAlreadyExistsException(laneId + " " + crossingId);
+        }
+    }
+
+    private void assertRequestExists(final Context ctx, final long requestId, final String laneId,
+            final String crossingId) {
+        String compKey = createCompKey(ctx, Request.TYPE, "" + requestId, crossingId, laneId);
+        byte[] buffer = ctx.getStub().getState(compKey);
+        final boolean exists = (buffer != null && buffer.length > 0);
+
+        if (!exists) {
+            throwAssetDoesntExistException(requestId + " " + crossingId + " " + laneId);
         }
     }
 }

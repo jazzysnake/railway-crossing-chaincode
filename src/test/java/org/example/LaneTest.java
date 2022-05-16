@@ -17,4 +17,15 @@ class LaneTest {
         log.info(newLane.toJSONString());
         assertEquals(lane, newLane);
     }
+    
+    @Test
+    void laneIsFree(){
+        Lane lane = new Lane("", "", 1, 0, false);
+        assertTrue(lane.isFree());
+        lane.setOccupied(1);
+        assertFalse(lane.isFree());
+        lane.setOccupied(0);
+        lane.setPriorityLock(true);
+        assertFalse(lane.isFree());
+    }
 }

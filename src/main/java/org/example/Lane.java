@@ -32,6 +32,10 @@ public class Lane {
         this.priorityLock = priorityLock;
     }
     
+    public boolean isFree(){
+        return occupied<capacity && !priorityLock;
+    }
+    
     public String toJSONString(){
         return new JSONObject(this).toString();
     }

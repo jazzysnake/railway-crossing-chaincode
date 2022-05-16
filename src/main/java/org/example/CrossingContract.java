@@ -24,7 +24,6 @@ import org.hyperledger.fabric.shim.ChaincodeException;
 @Default
 public class CrossingContract implements ContractInterface {
     private static final int CROSSING_VALIDITY_DURATION_S = 60;
-    private static final Random rand = new Random(0);
     private long requestId = 0;
     private static final Logger log = Logger.getLogger(CrossingContract.class);
 
@@ -174,7 +173,9 @@ public class CrossingContract implements ContractInterface {
             lockLane(ctx, laneId, crossingId, true)
         );
 
-        if (crossing.getState() != CrossingState.FREE_TO_CROSS) {
+        if (crossing.getState() != CrossingState.FREE_TO_CROSS ||
+            crossing.getValidUntil()<ctx.getStub().getTxTimestamp().getEpochSecond()) {
+
             ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
             return request;
         }
@@ -212,6 +213,7 @@ public class CrossingContract implements ContractInterface {
             return request;
         }
 
+        Random rand = new Random(ctx.getStub().getTxTimestamp().toEpochMilli());
         int random = rand.nextInt(freeLanes.length);
 
         String laneId = freeLanes[random];
@@ -278,6 +280,21 @@ public class CrossingContract implements ContractInterface {
         }
 
         ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
+    }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public Crossing renewFreeToCrossValidity(final Context ctx, final String crossingId){
+        assertCrossingExists(ctx, crossingId, true);
+        Crossing crossing = readCrossing(ctx, crossingId);
+
+        if (crossing.getState()!=CrossingState.FREE_TO_CROSS) {
+            throw new ChaincodeException("Crossing must be in FREE_TO_CROSS state for this operation");
+        }
+
+        crossing.setValidUntil(calcValidity(ctx));
+        updateCrossing(ctx, crossingId, crossing.getLaneIds(), crossing.getState().name(), crossing.isPriorityLock(), crossing.getValidUntil());
+
+        return crossing;
     }
 
     private Lane lockLane(final Context ctx, final String laneId, final String crossingId, final boolean priorityLock) {

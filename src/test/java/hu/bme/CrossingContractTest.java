@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: Apache License 2.0
  */
 
-package org.example;
+package hu.bme;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.apache.log4j.Logger;

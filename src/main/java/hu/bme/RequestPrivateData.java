@@ -1,9 +1,9 @@
-package org.example;
+package hu.bme;
 
 import org.json.JSONObject;
 
 public class RequestPrivateData {
-    
+
     public static final String COLLECTION_NAME = "REQUEST_PRIVDATA";
     private String requestId;
     private String laneId;
@@ -16,7 +16,7 @@ public class RequestPrivateData {
         this.crossingId = crossingId;
         this.clientId = clientId;
     }
-    
+
     public String toJSONString() {
         return new JSONObject(this).toString();
     }
@@ -104,6 +104,5 @@ public class RequestPrivateData {
             return false;
         return true;
     }
-    
-    
+
 }

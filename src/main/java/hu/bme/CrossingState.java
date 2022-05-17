@@ -1,8 +1,9 @@
-package org.example;
+package hu.bme;
 
-public enum CrossingState { 
+public enum CrossingState {
     FREE_TO_CROSS, LOCKED;
-    public static CrossingState fromString(String state){
+
+    public static CrossingState fromString(String state) {
         if (state.equals(FREE_TO_CROSS.name())) {
             return CrossingState.FREE_TO_CROSS;
         }

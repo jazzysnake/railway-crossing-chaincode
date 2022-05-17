@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.example;
+package hu.bme;
 
 import org.hyperledger.fabric.contract.annotation.DataType;
 import org.hyperledger.fabric.contract.annotation.Property;
@@ -10,7 +10,7 @@ import org.json.JSONObject;
 
 @DataType()
 public class Request {
-    
+
     public static final String TYPE = "REQUEST";
 
     @Property()
@@ -27,11 +27,12 @@ public class Request {
 
     @Property()
     private boolean granted;
-    
+
     @Property()
     private boolean active;
 
-    public Request(final String id, final String crossingId, final String laneId, final RequesterRole roleOfRequester,final boolean granted, final boolean active){
+    public Request(final String id, final String crossingId, final String laneId, final RequesterRole roleOfRequester,
+            final boolean granted, final boolean active) {
         this.id = id;
         this.crossingId = crossingId;
         this.laneId = laneId;
@@ -49,7 +50,7 @@ public class Request {
         final String id = jsonObject.getString("id");
         final String crossingId = jsonObject.getString("crossingId");
         final String laneId = jsonObject.getString("laneId");
-        final RequesterRole roleOfRequester = jsonObject.getEnum(RequesterRole.class,"roleOfRequester");
+        final RequesterRole roleOfRequester = jsonObject.getEnum(RequesterRole.class, "roleOfRequester");
         final boolean isGranted = jsonObject.getBoolean("granted");
         final boolean isActive = jsonObject.getBoolean("active");
         return new Request(id, crossingId, laneId, roleOfRequester, isGranted, isActive);
@@ -78,7 +79,6 @@ public class Request {
     public void setLaneId(String laneId) {
         this.laneId = laneId;
     }
-
 
     public RequesterRole getRoleOfRequester() {
         return roleOfRequester;

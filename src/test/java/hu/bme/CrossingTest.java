@@ -1,4 +1,4 @@
-package org.example;
+package hu.bme;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -9,14 +9,14 @@ class CrossingTest {
     public static Logger log = Logger.getLogger(Crossing.class.getName());
 
     @Test
-    void jsonSerializableCrossing(){
-        String[] laneIds = {"123", "456"};
-        Crossing crossing = new Crossing("123",laneIds, CrossingState.FREE_TO_CROSS,false,1);
+    void jsonSerializableCrossing() {
+        String[] laneIds = { "123", "456" };
+        Crossing crossing = new Crossing("123", laneIds, CrossingState.FREE_TO_CROSS, false, 1);
         String json = crossing.toJSONString();
         log.info(json);
         Crossing newCrossing = Crossing.fromJSONString(json);
         log.info(newCrossing.toJSONString());
         assertEquals(crossing, newCrossing);
     }
-      
+
 }

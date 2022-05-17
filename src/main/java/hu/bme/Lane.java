@@ -1,12 +1,12 @@
-package org.example;
+package hu.bme;
 
+import org.hyperledger.fabric.contract.annotation.DataType;
 import org.hyperledger.fabric.contract.annotation.Property;
 import org.json.JSONObject;
-import org.hyperledger.fabric.contract.annotation.DataType;
 
 @DataType()
 public class Lane {
-    
+
     @Property()
     private String id;
 
@@ -18,28 +18,28 @@ public class Lane {
 
     @Property()
     private int occupied;
-    
+
     @Property()
     private boolean priorityLock;
 
     public static final String TYPE = "LANE";
-    
-    public Lane(String id, String crossingId, int capacity, int occupied, boolean priorityLock){
+
+    public Lane(String id, String crossingId, int capacity, int occupied, boolean priorityLock) {
         this.id = id;
         this.crossingId = crossingId;
         this.capacity = capacity;
         this.occupied = occupied;
         this.priorityLock = priorityLock;
     }
-    
-    public boolean isFree(){
-        return occupied<capacity && !priorityLock;
+
+    public boolean isFree() {
+        return occupied < capacity && !priorityLock;
     }
-    
-    public String toJSONString(){
+
+    public String toJSONString() {
         return new JSONObject(this).toString();
     }
-    
+
     public static Lane fromJSONString(String json) {
         JSONObject jsonObject = new JSONObject(json);
         String id = jsonObject.getString("id");
@@ -48,7 +48,7 @@ public class Lane {
         int occupied = jsonObject.getInt("occupied");
         boolean priorityLock = jsonObject.getBoolean("priorityLock");
         return new Lane(id, crossingId, capacity, occupied, priorityLock);
-        
+
     }
 
     public String getId() {

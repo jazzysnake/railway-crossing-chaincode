@@ -2,12 +2,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.example;
+package hu.bme;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.hyperledger.fabric.contract.annotation.DataType;
 import org.hyperledger.fabric.contract.annotation.Property;
 import org.json.JSONObject;
-import java.util.*;
 
 @DataType()
 public class Crossing {
@@ -15,22 +18,21 @@ public class Crossing {
     @Property()
     private String id;
 
-
     @Property()
     private String[] laneIds;
-    
+
     @Property()
     private CrossingState state;
 
     @Property()
     private boolean priorityLock;
-    
+
     @Property()
     private long validUntil;
-    
+
     public static final String TYPE = "CROSSING";
 
-    public Crossing(String id, String[] laneIds, CrossingState state, boolean priorityLock, long validUntil){
+    public Crossing(String id, String[] laneIds, CrossingState state, boolean priorityLock, long validUntil) {
         this.id = id;
         this.laneIds = laneIds;
         this.state = state;
@@ -50,10 +52,11 @@ public class Crossing {
         boolean priorityLock = jsonObject.getBoolean("priorityLock");
         long validUntil = jsonObject.getLong("validUntil");
         ArrayList<String> laneIdList = new ArrayList<>();
-        laneIdList.addAll((List<String>)(Object)laneIdObjetList);
+        laneIdList.addAll((List<String>) (Object) laneIdObjetList);
         String[] laneIds = laneIdList.stream().toArray(String[]::new);
-        return new Crossing(id,laneIds,crossingState,priorityLock, validUntil);
+        return new Crossing(id, laneIds, crossingState, priorityLock, validUntil);
     }
+
     public String getId() {
         return id;
     }
@@ -77,7 +80,6 @@ public class Crossing {
     public void setState(CrossingState state) {
         this.state = state;
     }
-
 
     public boolean isPriorityLock() {
         return priorityLock;

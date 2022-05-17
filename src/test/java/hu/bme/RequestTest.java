@@ -1,10 +1,9 @@
-package org.example;
-
-import org.junit.jupiter.api.Test;
+package hu.bme;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.apache.log4j.Logger;
+import org.junit.jupiter.api.Test;
 
 class RequestTest {
 

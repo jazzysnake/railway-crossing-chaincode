@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.example;
+package hu.bme;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -73,7 +73,7 @@ public class CrossingContract implements ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void deleteCrossing(final Context ctx, final String crossingId) {
-        assertCallingOrg(ctx,RAILWAY_ORG_MSP);
+        assertCallingOrg(ctx, RAILWAY_ORG_MSP);
         assertCrossingExists(ctx, crossingId, true);
         Crossing crossing = readCrossing(ctx, crossingId);
         Arrays.stream(crossing.getLaneIds()).forEach((laneId -> deleteLane(ctx, laneId, crossingId)));
@@ -96,7 +96,7 @@ public class CrossingContract implements ContractInterface {
     // state
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public Lane createLane(final Context ctx, final String laneId, final String crossingId, final int capacity) {
-        assertCallingOrg(ctx,RAILWAY_ORG_MSP);
+        assertCallingOrg(ctx, RAILWAY_ORG_MSP);
         assertCrossingExists(ctx, crossingId, true);
         assertLaneExists(ctx, laneId, crossingId, false);
         final Crossing crossing = readCrossing(ctx, crossingId);
@@ -134,7 +134,7 @@ public class CrossingContract implements ContractInterface {
     public Lane updateLane(final Context ctx, final String laneId, final String crossingId, final int capacity,
             final int occupied,
             final boolean priorityLock) {
-        assertCallingOrg(ctx,RAILWAY_ORG_MSP);
+        assertCallingOrg(ctx, RAILWAY_ORG_MSP);
         if (occupied > capacity) {
             throw new IllegalArgumentException("Capacity can't be a lower value than occupied");
         }
@@ -149,7 +149,7 @@ public class CrossingContract implements ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void deleteLane(final Context ctx, final String laneId, final String crossingId) {
-        assertCallingOrg(ctx,RAILWAY_ORG_MSP);
+        assertCallingOrg(ctx, RAILWAY_ORG_MSP);
         assertCrossingExists(ctx, crossingId, true);
         assertLaneExists(ctx, laneId, crossingId, true);
         final Crossing crossing = readCrossing(ctx, crossingId);
@@ -164,7 +164,7 @@ public class CrossingContract implements ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public Request requestTrainCrossing(final Context ctx, final String crossingId) {
-        assertCallingOrg(ctx,RAILWAY_ORG_MSP);
+        assertCallingOrg(ctx, RAILWAY_ORG_MSP);
         assertCrossingExists(ctx, crossingId, true);
         Crossing crossing = readCrossing(ctx, crossingId);
 
@@ -174,7 +174,7 @@ public class CrossingContract implements ContractInterface {
         String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, crossingId, "N/A");
         Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.TRAIN, false,
                 false);
-        recordClientIdentity(ctx, ""+requestId, "N/A", crossingId);
+        recordClientIdentity(ctx, "" + requestId, "N/A", crossingId);
 
         Arrays.stream(crossing.getLaneIds()).forEach(laneId -> lockLane(ctx, laneId, crossingId, true));
 
@@ -193,13 +193,12 @@ public class CrossingContract implements ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public Request requestCarCrossing(final Context ctx, final String crossingId) {
-        assertCallingOrg(ctx,VEHICLE_OWNER_MSP);
+        assertCallingOrg(ctx, VEHICLE_OWNER_MSP);
         assertCrossingExists(ctx, crossingId, true);
 
         Crossing crossing = readCrossing(ctx, crossingId);
         this.requestId++;
-        recordClientIdentity(ctx, ""+requestId, "N/A", crossingId);
-
+        recordClientIdentity(ctx, "" + requestId, "N/A", crossingId);
 
         String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, crossingId, "N/A");
         if (crossing.isPriorityLock()) {
@@ -238,7 +237,7 @@ public class CrossingContract implements ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void releaseTrainPermission(final Context ctx, final long requestId, final String crossingId) {
-        assertCallingOrg(ctx,RAILWAY_ORG_MSP);
+        assertCallingOrg(ctx, RAILWAY_ORG_MSP);
         assertCrossingExists(ctx, crossingId, true);
         assertRequestExists(ctx, requestId, "N/A", crossingId);
         // TODO check caller identity
@@ -263,7 +262,7 @@ public class CrossingContract implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void releaseCarPermission(final Context ctx, final long requestId, final String crossingId,
             final String laneId) {
-        assertCallingOrg(ctx,VEHICLE_OWNER_MSP);
+        assertCallingOrg(ctx, VEHICLE_OWNER_MSP);
         assertCrossingExists(ctx, crossingId, true);
         assertLaneExists(ctx, laneId, crossingId, true);
         assertRequestExists(ctx, requestId, laneId, crossingId);
@@ -295,7 +294,7 @@ public class CrossingContract implements ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public Crossing renewFreeToCrossValidity(final Context ctx, final String crossingId) {
-        assertCallingOrg(ctx,RAILWAY_ORG_MSP);
+        assertCallingOrg(ctx, RAILWAY_ORG_MSP);
         assertCrossingExists(ctx, crossingId, true);
         Crossing crossing = readCrossing(ctx, crossingId);
 
@@ -384,15 +383,15 @@ public class CrossingContract implements ContractInterface {
             throwAssetDoesntExistException(requestId + " " + crossingId + " " + laneId);
         }
     }
-    
-    private void assertCallingOrg(final Context ctx, final String msp){
-        if(!ctx.getClientIdentity().getMSPID().equals(msp)){
-            throw new ChaincodeException("Must be part of "+msp+" to perform this operation");
+
+    private void assertCallingOrg(final Context ctx, final String msp) {
+        if (!ctx.getClientIdentity().getMSPID().equals(msp)) {
+            throw new ChaincodeException("Must be part of " + msp + " to perform this operation");
         }
     }
-    
-    private void recordClientIdentity(final Context ctx,String requestId, String laneId, String crossingId){
-        String compKey = createCompKey(ctx, RequestPrivateData.COLLECTION_NAME, requestId,laneId,crossingId);
+
+    private void recordClientIdentity(final Context ctx, String requestId, String laneId, String crossingId) {
+        String compKey = createCompKey(ctx, RequestPrivateData.COLLECTION_NAME, requestId, laneId, crossingId);
         ctx.getStub().putPrivateData(RequestPrivateData.COLLECTION_NAME, compKey, ctx.getClientIdentity().getId());
     }
 }

@@ -5,6 +5,8 @@ package hu.bme;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
@@ -27,7 +29,7 @@ public class CrossingContract implements ContractInterface {
     private long requestId = 0;
     private static final Logger log = Logger.getLogger(CrossingContract.class);
     private static final String RAILWAY_ORG_MSP = "RailwayOrgMSP";
-    private static final String VEHICLE_OWNER_MSP = "VehicleOwnerMSP";
+    private static final String VEHICLE_OWNER_MSP = "VehicleOwnerOrgMSP";
 
     public CrossingContract() {
     }
@@ -44,6 +46,7 @@ public class CrossingContract implements ContractInterface {
             final int laneCapacity) {
         assertCallingOrg(ctx, RAILWAY_ORG_MSP);
         assertCrossingExists(ctx, crossingId, false);
+        assertRailwayAdmin(ctx);
         final Crossing asset = new Crossing(crossingId, laneIds, CrossingState.FREE_TO_CROSS, false,
                 ctx.getStub().getTxTimestamp().toEpochMilli() + 300 * 60);
         createLanes(ctx, laneIds, crossingId, laneCapacity);
@@ -59,8 +62,7 @@ public class CrossingContract implements ContractInterface {
         return Crossing.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
     }
 
-    @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Crossing updateCrossing(final Context ctx, final String crossingId, final String[] laneIds,
+    private Crossing updateCrossing(final Context ctx, final String crossingId, final String[] laneIds,
             final String crossingState,
             final boolean priorityLock, final long validUntil) {
         assertCrossingExists(ctx, crossingId, true);
@@ -74,15 +76,12 @@ public class CrossingContract implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void deleteCrossing(final Context ctx, final String crossingId) {
         assertCallingOrg(ctx, RAILWAY_ORG_MSP);
+        assertRailwayAdmin(ctx);
         assertCrossingExists(ctx, crossingId, true);
         Crossing crossing = readCrossing(ctx, crossingId);
         Arrays.stream(crossing.getLaneIds()).forEach((laneId -> deleteLane(ctx, laneId, crossingId)));
         String compKey = createCompKey(ctx, Crossing.TYPE, crossingId);
         ctx.getStub().delState(compKey);
-    }
-
-    private String createCompKey(final Context ctx, final String objectType, final String... idParts) {
-        return ctx.getStub().createCompositeKey(objectType.toUpperCase(), idParts).toString();
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
@@ -97,6 +96,7 @@ public class CrossingContract implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public Lane createLane(final Context ctx, final String laneId, final String crossingId, final int capacity) {
         assertCallingOrg(ctx, RAILWAY_ORG_MSP);
+        assertRailwayAdmin(ctx);
         assertCrossingExists(ctx, crossingId, true);
         assertLaneExists(ctx, laneId, crossingId, false);
         final Crossing crossing = readCrossing(ctx, crossingId);
@@ -130,11 +130,12 @@ public class CrossingContract implements ContractInterface {
         return Lane.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
     }
 
-    @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public Lane updateLane(final Context ctx, final String laneId, final String crossingId, final int capacity,
+    //@Transaction(intent = Transaction.TYPE.SUBMIT)
+    private Lane updateLane(final Context ctx, final String laneId, final String crossingId, final int capacity,
             final int occupied,
             final boolean priorityLock) {
-        assertCallingOrg(ctx, RAILWAY_ORG_MSP);
+        //assertCallingOrg(ctx, RAILWAY_ORG_MSP);
+        //assertRailwayAdmin(ctx);
         if (occupied > capacity) {
             throw new IllegalArgumentException("Capacity can't be a lower value than occupied");
         }
@@ -150,6 +151,7 @@ public class CrossingContract implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void deleteLane(final Context ctx, final String laneId, final String crossingId) {
         assertCallingOrg(ctx, RAILWAY_ORG_MSP);
+        assertRailwayAdmin(ctx);
         assertCrossingExists(ctx, crossingId, true);
         assertLaneExists(ctx, laneId, crossingId, true);
         final Crossing crossing = readCrossing(ctx, crossingId);
@@ -157,8 +159,7 @@ public class CrossingContract implements ContractInterface {
         String[] remainingLanes = Arrays.stream(crossing.getLaneIds()).filter((t -> !t.equals(laneId)))
                 .toArray(String[]::new);
         // TODO lock status might change upon update
-        updateCrossing(ctx, crossingId, remainingLanes, crossing.getState().name(), crossing.isPriorityLock(),
-                calcValidity(ctx));
+        updateCrossing(ctx, crossingId, remainingLanes, crossing.getState().name(), crossing.isPriorityLock(),crossing.getValidUntil());
         ctx.getStub().delState(compKey);
     }
 
@@ -174,7 +175,7 @@ public class CrossingContract implements ContractInterface {
         String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, crossingId, "N/A");
         Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.TRAIN, false,
                 false);
-        recordClientIdentity(ctx, "" + requestId, "N/A", crossingId);
+        recordClientIdentity(ctx, "" + requestId, "N/A", crossingId,ctx.getClientIdentity().getId());
 
         Arrays.stream(crossing.getLaneIds()).forEach(laneId -> lockLane(ctx, laneId, crossingId, true));
 
@@ -198,7 +199,7 @@ public class CrossingContract implements ContractInterface {
 
         Crossing crossing = readCrossing(ctx, crossingId);
         this.requestId++;
-        recordClientIdentity(ctx, "" + requestId, "N/A", crossingId);
+        recordClientIdentity(ctx, "" + requestId, "N/A", crossingId,ctx.getClientIdentity().getId());
 
         String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, crossingId, "N/A");
         if (crossing.isPriorityLock()) {
@@ -295,6 +296,7 @@ public class CrossingContract implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public Crossing renewFreeToCrossValidity(final Context ctx, final String crossingId) {
         assertCallingOrg(ctx, RAILWAY_ORG_MSP);
+        assertRailwayAdmin(ctx);
         assertCrossingExists(ctx, crossingId, true);
         Crossing crossing = readCrossing(ctx, crossingId);
 
@@ -307,6 +309,10 @@ public class CrossingContract implements ContractInterface {
                 crossing.getValidUntil());
 
         return crossing;
+    }
+
+    private String createCompKey(final Context ctx, final String objectType, final String... idParts) {
+        return ctx.getStub().createCompositeKey(objectType.toUpperCase(), idParts).toString();
     }
 
     private Lane lockLane(final Context ctx, final String laneId, final String crossingId, final boolean priorityLock) {
@@ -390,8 +396,23 @@ public class CrossingContract implements ContractInterface {
         }
     }
 
-    private void recordClientIdentity(final Context ctx, String requestId, String laneId, String crossingId) {
-        String compKey = createCompKey(ctx, RequestPrivateData.COLLECTION_NAME, requestId, laneId, crossingId);
-        ctx.getStub().putPrivateData(RequestPrivateData.COLLECTION_NAME, compKey, ctx.getClientIdentity().getId());
+    private void recordClientIdentity(final Context ctx, String requestId, String laneId, String crossingId, String clientId) {
+        String compKey = createCompKey(ctx, RequestPrivateData.COLLECTION_NAME, ""+requestId, laneId, crossingId);
+        RequestPrivateData priv = new RequestPrivateData(requestId, laneId, crossingId, clientId);
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new ChaincodeException("");
+        }
+        byte[] hash = digest.digest(priv.toJSONString().getBytes(UTF_8));
+        ctx.getStub().putState(compKey, hash);
+    }
+    
+    private void assertRailwayAdmin(Context ctx){
+        if(!ctx.getClientIdentity().getId().equals("x509::CN=RailwayOrg Admin, OU=admin::CN=RailwayOrg CA")){
+            throw new ChaincodeException("Only the RailwayOrg's Admin can perform this operation");
+        }
+        
     }
 }

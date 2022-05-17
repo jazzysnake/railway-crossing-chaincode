@@ -1,13 +1,20 @@
 package hu.bme;
 
+import org.hyperledger.fabric.contract.annotation.DataType;
+import org.hyperledger.fabric.contract.annotation.Property;
 import org.json.JSONObject;
 
+@DataType()
 public class RequestPrivateData {
 
     public static final String COLLECTION_NAME = "REQUEST_PRIVDATA";
+    @Property()
     private String requestId;
+    @Property()
     private String laneId;
+    @Property()
     private String crossingId;
+    @Property()
     private String clientId;
 
     public RequestPrivateData(String requestId, String laneId, String crossingId, String clientId) {

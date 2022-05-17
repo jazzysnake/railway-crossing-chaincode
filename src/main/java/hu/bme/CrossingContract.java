@@ -172,7 +172,7 @@ public class CrossingContract implements ContractInterface {
         updateCrossing(ctx, crossingId, crossing.getLaneIds(), CrossingState.LOCKED.name(), true, 0L);
 
         requestId++;
-        String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, crossingId, "N/A");
+        String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, "N/A", crossingId);
         Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.TRAIN, false,
                 false);
         recordClientIdentity(ctx, "" + requestId, "N/A", crossingId,ctx.getClientIdentity().getId());
@@ -241,8 +241,8 @@ public class CrossingContract implements ContractInterface {
         assertCallingOrg(ctx, RAILWAY_ORG_MSP);
         assertCrossingExists(ctx, crossingId, true);
         assertRequestExists(ctx, requestId, "N/A", crossingId);
-        // TODO check caller identity
-        String compKey = createCompKey(ctx, Request.TYPE, "" + requestId, crossingId, "N/A");
+
+        String compKey = createCompKey(ctx, Request.TYPE, "" + requestId, "N/A", crossingId);
         Request request = Request.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
         request.setActive(false);
 
@@ -381,7 +381,7 @@ public class CrossingContract implements ContractInterface {
 
     private void assertRequestExists(final Context ctx, final long requestId, final String laneId,
             final String crossingId) {
-        String compKey = createCompKey(ctx, Request.TYPE, "" + requestId, crossingId, laneId);
+        String compKey = createCompKey(ctx, Request.TYPE, "" + requestId, laneId, crossingId);
         byte[] buffer = ctx.getStub().getState(compKey);
         final boolean exists = (buffer != null && buffer.length > 0);
 

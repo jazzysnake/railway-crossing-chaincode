@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.Random;
 
 import org.apache.log4j.Logger;
 import org.hyperledger.fabric.contract.ClientIdentity;
@@ -37,21 +38,27 @@ final class CrossingContractTest {
     private String crossingId;
     private CompositeKey crossingCompKey;
     private String railwayAdminId = "x509::CN=RailwayOrg Admin, OU=admin::CN=RailwayOrg CA";
+    private long requestId;
+    private Random rand;
     @BeforeEach
-    public void init(){
+    void init(){
         ctx = mock(Context.class);
         stub = mock(ChaincodeStub.class);
         when(ctx.getStub()).thenReturn(stub);
         crossingId = "001";
         crossingCompKey = new CompositeKey(Crossing.TYPE,crossingId);
         when(stub.createCompositeKey(Crossing.TYPE, crossingId)).thenReturn(crossingCompKey);
+        when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
+        rand = new Random(0);
+        requestId = rand.nextLong();
+        
     }
 
 
     @Nested
     class CrossingExists {
         @Test
-        public void noProperCrossing() {
+        void noProperCrossing() {
             when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] {});
 
             boolean result = contract.crossingExists(ctx,crossingId);
@@ -60,7 +67,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void crossingExists() {
+        void crossingExists() {
 
             when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] {42});
             boolean result = contract.crossingExists(ctx,crossingId);
@@ -70,7 +77,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void noKey() {
+        void noKey() {
             String cId = "002";
             CompositeKey compositeKey = new CompositeKey(Crossing.TYPE, cId);
             when(stub.createCompositeKey(Crossing.TYPE, cId)).thenReturn(compositeKey);
@@ -101,7 +108,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void newCrossingCreate() {
+        void newCrossingCreate() {
 
             when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] {});
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
@@ -118,7 +125,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void alreadyExists() {
+        void alreadyExists() {
             when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] { 42 });
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
             when(ctx.getClientIdentity()).thenReturn(clientIdentity);
@@ -133,7 +140,7 @@ final class CrossingContractTest {
         }
         
         @Test
-        public void notFromRailwayOrg(){
+        void notFromRailwayOrg(){
             when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] { 42 });
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
             when(ctx.getClientIdentity()).thenReturn(clientIdentity);
@@ -153,7 +160,7 @@ final class CrossingContractTest {
     class CrossingReads{
 
         @Test
-        public void crossingReadValid() {
+        void crossingReadValid() {
             String[] laneIds = new String[1];
             laneIds[0] = "01";
             Crossing crossing = new Crossing(crossingId, laneIds, CrossingState.FREE_TO_CROSS, false, 0);
@@ -164,7 +171,7 @@ final class CrossingContractTest {
         }
         
         @Test
-        public void crossingReadNonexistent(){
+        void crossingReadNonexistent(){
             when(stub.createCompositeKey(Crossing.TYPE, "nonExistentCrossingId")).thenReturn(new CompositeKey(Crossing.TYPE, "nonExistentCrossingId"));
             when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] {});
             Exception thrown = assertThrows(ChaincodeException.class, () -> {
@@ -192,7 +199,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void deleteValid(){
+        void deleteValid(){
             String msp = "RailwayOrgMSP";
             when(clientIdentity.getMSPID()).thenReturn(msp);
             when(clientIdentity.getId()).thenReturn(railwayAdminId);
@@ -206,7 +213,7 @@ final class CrossingContractTest {
             verify(stub,times(1)).delState(crossingCompKey.toString());
         }
         @Test
-        public void deleteNonExistent(){
+        void deleteNonExistent(){
             String msp = "RailwayOrgMSP";
             when(clientIdentity.getMSPID()).thenReturn(msp);
             when(clientIdentity.getId()).thenReturn(railwayAdminId);
@@ -219,7 +226,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void deleteNotAuthorized(){
+        void deleteNotAuthorized(){
             String msp = "NotRailwayOrgMSP";
             when(clientIdentity.getMSPID()).thenReturn(msp);
             when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] {});
@@ -239,7 +246,7 @@ final class CrossingContractTest {
         private final String laneId = "01";
         
         @Test
-        public void noProperLane(){
+        void noProperLane(){
             laneCompositeKey = new CompositeKey(Lane.TYPE, laneId,crossingId);
 
             when(stub.createCompositeKey(Lane.TYPE, laneId,crossingId)).thenReturn(laneCompositeKey);
@@ -251,7 +258,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void laneExists() {
+        void laneExists() {
 
             laneCompositeKey = new CompositeKey(Lane.TYPE, laneId,crossingId);
             when(stub.getState(laneCompositeKey.toString())).thenReturn(new byte[] {42});
@@ -261,7 +268,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void noKey() {
+        void noKey() {
             String cId = "002";
             CompositeKey compositeKey = new CompositeKey(Lane.TYPE, laneId,cId);
             when(stub.createCompositeKey(Crossing.TYPE, cId)).thenReturn(compositeKey);
@@ -292,7 +299,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void newLaneCreate() {
+        void newLaneCreate() {
 
             when(stub.getState(laneCompositeKey.toString())).thenReturn(new byte[] {});
             when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
@@ -311,7 +318,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void alreadyExists() {
+        void alreadyExists() {
             when(stub.getState(laneCompositeKey.toString())).thenReturn(new byte[] { 42 });
             when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] { 42 });
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
@@ -327,7 +334,7 @@ final class CrossingContractTest {
         }
         
         @Test
-        public void notFromRailwayOrg(){
+        void notFromRailwayOrg(){
             when(stub.getState(laneCompositeKey.toString())).thenReturn(new byte[] { 42 });
             when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] { 42 });
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
@@ -360,7 +367,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void deleteValid(){
+        void deleteValid(){
             String msp = "RailwayOrgMSP";
             when(clientIdentity.getMSPID()).thenReturn(msp);
             when(clientIdentity.getId()).thenReturn(railwayAdminId);
@@ -378,7 +385,7 @@ final class CrossingContractTest {
             verify(stub,times(1)).putState(crossingCompKey.toString(),crossing.toJSONString().getBytes(UTF_8));
         }
         @Test
-        public void deleteNonExistent(){
+        void deleteNonExistent(){
             String msp = "RailwayOrgMSP";
             String nonExistentLane = "nonExistentLane";
             when(clientIdentity.getMSPID()).thenReturn(msp);
@@ -395,7 +402,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void deleteNotAuthorized(){
+        void deleteNotAuthorized(){
             String msp = "NotRailwayOrgMSP";
             when(clientIdentity.getMSPID()).thenReturn(msp);
             when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] {});
@@ -426,14 +433,14 @@ final class CrossingContractTest {
             when(stub.createCompositeKey(Lane.TYPE, laneId,crossingId)).thenReturn(laneCompKey);
         }
         @Test
-        public void laneReadValid() {
+        void laneReadValid() {
             when(stub.getState(laneCompKey.toString())).thenReturn(lane.toJSONString().getBytes(UTF_8));
             when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
             Lane returnedLane = contract.readLane(ctx,laneId,crossingId);
             assertEquals(lane,returnedLane);
         }
         @Test
-        public void laneReadNonExistentLane() {
+        void laneReadNonExistentLane() {
             when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
             Exception thrown = assertThrows(ChaincodeException.class, () -> {
                 contract.readLane(ctx, laneId, crossingId);
@@ -442,7 +449,7 @@ final class CrossingContractTest {
         }
         
         @Test
-        public void laneReadNonExistentCrossing(){
+        void laneReadNonExistentCrossing(){
             when(stub.getState(laneCompKey.toString())).thenReturn(lane.toJSONString().getBytes(UTF_8));
             Exception thrown = assertThrows(ChaincodeException.class, () -> {
                 contract.readLane(ctx, laneId, crossingId);
@@ -459,11 +466,9 @@ final class CrossingContractTest {
         private final String msp = "RailwayOrgMSP";
         private CompositeKey laneCompositeKey;
         private Lane lane;
-        private long requestId;
 
         @BeforeEach
         void init(){
-            requestId = 1;
             laneIds = new String[] {"01"};
             laneCompositeKey = new CompositeKey(Lane.TYPE, laneIds[0],crossingId);
             crossing = new Crossing(crossingId, laneIds , CrossingState.FREE_TO_CROSS, false, 0);
@@ -473,7 +478,7 @@ final class CrossingContractTest {
         }
         
         @Test
-        public void trainRequestGranted(){
+        void trainRequestGranted(){
             when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
             when(ctx.getClientIdentity()).thenReturn(clientIdentity);
@@ -481,7 +486,7 @@ final class CrossingContractTest {
             when(clientIdentity.getId()).thenReturn(railwayAdminId);
             lane = new Lane(laneIds[0], crossingId, 1, 0, false);
             Request request = new Request(""+requestId, crossingId, "N/A", RequesterRole.TRAIN, true, true);
-            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A", crossingId);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + requestId, "N/A", crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId, "N/A", crossingId, railwayAdminId);
             CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId, "N/A", crossingId);
 
@@ -514,15 +519,17 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void trainRequestDeniedFreeToCrossExpired(){
+        void trainRequestDeniedFreeToCrossExpired(){
             when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(99999));
+            rand = new Random(Instant.ofEpochMilli(99999).getEpochSecond());
+            requestId = rand.nextLong();
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
             when(ctx.getClientIdentity()).thenReturn(clientIdentity);
             when(clientIdentity.getMSPID()).thenReturn(msp);
             when(clientIdentity.getId()).thenReturn(railwayAdminId);
             lane = new Lane(laneIds[0], crossingId, 1, 0, false);
             Request request = new Request(""+requestId, crossingId, "N/A", RequesterRole.TRAIN, false,false);
-            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A", crossingId);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + requestId, "N/A", crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId, "N/A", crossingId, railwayAdminId);
             CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId, "N/A", crossingId);
 
@@ -555,7 +562,7 @@ final class CrossingContractTest {
         }
         
         @Test
-        public void trainRequestDeniedCrossingLocked(){
+        void trainRequestDeniedCrossingLocked(){
             crossing.setState(CrossingState.LOCKED);
             when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
@@ -564,7 +571,7 @@ final class CrossingContractTest {
             when(clientIdentity.getId()).thenReturn(railwayAdminId);
             lane = new Lane(laneIds[0], crossingId, 1, 0,true);
             Request request = new Request(""+requestId, crossingId, "N/A", RequesterRole.TRAIN, false,false);
-            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A", crossingId);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + requestId, "N/A", crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId, "N/A", crossingId, railwayAdminId);
             CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId, "N/A", crossingId);
 
@@ -598,7 +605,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void trainRequestReleasedSuccessfully(){
+        void trainRequestReleasedSuccessfully(){
             crossing.setState(CrossingState.LOCKED);
             when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
@@ -607,7 +614,7 @@ final class CrossingContractTest {
             when(clientIdentity.getId()).thenReturn(railwayAdminId);
             lane = new Lane(laneIds[0], crossingId, 1, 0, true);
             Request request = new Request(""+requestId, crossingId, "N/A", RequesterRole.TRAIN, true,true);
-            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A", crossingId);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + requestId, "N/A", crossingId);
             CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId, "N/A", crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId, "N/A", crossingId, railwayAdminId);
 
@@ -640,7 +647,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void trainRequestReleaseDeniedIdentityMismatch(){
+        void trainRequestReleaseDeniedIdentityMismatch(){
             crossing.setState(CrossingState.LOCKED);
             when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
@@ -649,7 +656,7 @@ final class CrossingContractTest {
             when(clientIdentity.getId()).thenReturn(railwayAdminId);
             lane = new Lane(laneIds[0], crossingId, 1, 0, true);
             Request request = new Request(""+requestId, crossingId, "N/A", RequesterRole.TRAIN, true,true);
-            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A", crossingId);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + requestId, "N/A", crossingId);
             CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId, "N/A", crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId, "N/A", crossingId, "notTheIdThatAcquiredThePermission");
 
@@ -683,12 +690,10 @@ final class CrossingContractTest {
         private final String msp = "VehicleOwnerOrgMSP";
         private CompositeKey laneCompositeKey;
         private Lane lane;
-        private long requestId;
         private String clientId = "vehichleOwner";
 
         @BeforeEach
         void init(){
-            requestId = 1;
             laneIds = new String[] {"01"};
             laneCompositeKey = new CompositeKey(Lane.TYPE, laneIds[0],crossingId);
             crossing = new Crossing(crossingId, laneIds , CrossingState.FREE_TO_CROSS, false, 0);
@@ -698,7 +703,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void carRequestGranted(){
+        void carRequestGranted(){
             when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
             when(ctx.getClientIdentity()).thenReturn(clientIdentity);
@@ -706,7 +711,7 @@ final class CrossingContractTest {
             when(clientIdentity.getId()).thenReturn(clientId);
             lane = new Lane(laneIds[0], crossingId, 1, 0, false);
             Request request = new Request(""+requestId, crossingId,laneIds[0], RequesterRole.CAR, true, true);
-            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, laneIds[0],crossingId);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + requestId, laneIds[0],crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId, laneIds[0], crossingId, clientId);
             CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,laneIds[0], crossingId);
 
@@ -738,7 +743,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void carRequestDeniedAllLanesOccupied(){
+        void carRequestDeniedAllLanesOccupied(){
             crossing.setState(CrossingState.LOCKED);
             when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
@@ -747,7 +752,7 @@ final class CrossingContractTest {
             when(clientIdentity.getId()).thenReturn(clientId);
             lane = new Lane(laneIds[0], crossingId, 1,1, false);
             Request request = new Request(""+requestId, crossingId,"N/A", RequesterRole.CAR,false,false);
-            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A",crossingId);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + requestId, "N/A",crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId,"N/A", crossingId, clientId);
             CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,"N/A", crossingId);
 
@@ -778,7 +783,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void carRequestDeniedCrossingPriorityLocked(){
+        void carRequestDeniedCrossingPriorityLocked(){
             crossing.setState(CrossingState.LOCKED);
             crossing.setPriorityLock(true);
             when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
@@ -788,7 +793,7 @@ final class CrossingContractTest {
             when(clientIdentity.getId()).thenReturn(clientId);
             lane = new Lane(laneIds[0], crossingId, 1,0,true);
             Request request = new Request(""+requestId, crossingId,"N/A", RequesterRole.CAR,false,false);
-            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId,"N/A", crossingId);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + requestId,"N/A", crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId,"N/A", crossingId, clientId);
             CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,"N/A", crossingId);
 
@@ -819,7 +824,7 @@ final class CrossingContractTest {
         }
 
         @Test
-        public void carRequestReleasedSuccessfully(){
+        void carRequestReleasedSuccessfully(){
             crossing.setState(CrossingState.LOCKED);
             when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
             ClientIdentity clientIdentity = mock(ClientIdentity.class);
@@ -828,7 +833,7 @@ final class CrossingContractTest {
             when(clientIdentity.getId()).thenReturn(clientId);
             lane = new Lane(laneIds[0], crossingId, 1, 1, false);
             Request request = new Request(""+requestId, crossingId,laneIds[0], RequesterRole.CAR, true, false);
-            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId,laneIds[0], crossingId);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + requestId,laneIds[0], crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId, laneIds[0], crossingId, clientId);
             CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,laneIds[0], crossingId);
 
@@ -867,7 +872,7 @@ final class CrossingContractTest {
         private ClientIdentity clientIdentity;
 
         @BeforeEach
-        public void init(){
+        void init(){
             clientIdentity = mock(ClientIdentity.class);
             crossing = new Crossing(crossingId, new String[] {}, CrossingState.FREE_TO_CROSS, false, 0);
             String msp = "RailwayOrgMSP";
@@ -879,14 +884,14 @@ final class CrossingContractTest {
         }
         
         @Test
-        public void freeToCrossRenewedSuccessfully(){
+        void freeToCrossRenewedSuccessfully(){
             contract.renewFreeToCrossValidity(ctx, crossingId);
             crossing.setValidUntil(60);
             crossing.setState(CrossingState.FREE_TO_CROSS);
             verify(stub,times(1)).putState(crossingCompKey.toString(), crossing.toJSONString().getBytes(UTF_8));
         }
         @Test
-        public void freeToCrossRenewedDeniedClientNotRailwayAdmin(){
+        void freeToCrossRenewedDeniedClientNotRailwayAdmin(){
             when(clientIdentity.getId()).thenReturn("NotRailwayAdmin");
             Exception thrown = assertThrows(ChaincodeException.class, ()->{
                 contract.renewFreeToCrossValidity(ctx, crossingId);
@@ -897,7 +902,7 @@ final class CrossingContractTest {
             verify(stub,never()).putState(crossingCompKey.toString(), crossing.toJSONString().getBytes(UTF_8));
         }
         @Test
-        public void freeToCrossRenewedDeniedCrossingLocked(){
+        void freeToCrossRenewedDeniedCrossingLocked(){
             crossing.setState(CrossingState.LOCKED);
             when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
             when(clientIdentity.getId()).thenReturn(railwayAdminId);

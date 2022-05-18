@@ -26,7 +26,6 @@ import org.hyperledger.fabric.shim.ChaincodeException;
 @Default
 public class CrossingContract implements ContractInterface {
     private static final int CROSSING_VALIDITY_DURATION_S = 60;
-    private long requestId = 0;
     private static final Logger log = Logger.getLogger(CrossingContract.class);
     private static final String RAILWAY_ORG_MSP = "RailwayOrgMSP";
     private static final String VEHICLE_OWNER_MSP = "VehicleOwnerOrgMSP";
@@ -80,8 +79,6 @@ public class CrossingContract implements ContractInterface {
         return (buffer != null && buffer.length > 0);
     }
 
-    // TODO each lane creation and update might bring the crossing into an unwanted
-    // state
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public Lane createLane(final Context ctx, final String laneId, final String crossingId, final int capacity) {
         assertCallingOrg(ctx, RAILWAY_ORG_MSP);
@@ -119,7 +116,6 @@ public class CrossingContract implements ContractInterface {
         final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
         String[] remainingLanes = Arrays.stream(crossing.getLaneIds()).filter((t -> !t.equals(laneId)))
                 .toArray(String[]::new);
-        // TODO lock status might change upon update
         updateCrossing(ctx, crossingId, remainingLanes, crossing.getState().name(), crossing.isPriorityLock(),crossing.getValidUntil());
         ctx.getStub().delState(compKey);
     }
@@ -132,11 +128,10 @@ public class CrossingContract implements ContractInterface {
 
         updateCrossing(ctx, crossingId, crossing.getLaneIds(), CrossingState.LOCKED.name(), true, 0L);
 
-        requestId++;
-        String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, "N/A", crossingId);
-        Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.TRAIN, false,
+        String compKey = createCompKey(ctx, Request.TYPE, "" + getRequestId(ctx), "N/A", crossingId);
+        Request request = new Request("" + getRequestId(ctx), crossingId, "N/A", RequesterRole.TRAIN, false,
                 false);
-        recordClientIdentity(ctx, "" + requestId, "N/A", crossingId,ctx.getClientIdentity().getId());
+        recordClientIdentity(ctx, "" + getRequestId(ctx), "N/A", crossingId,ctx.getClientIdentity().getId());
 
         Arrays.stream(crossing.getLaneIds()).forEach(laneId -> lockLane(ctx, laneId, crossingId, true));
 
@@ -159,14 +154,13 @@ public class CrossingContract implements ContractInterface {
         assertCrossingExists(ctx, crossingId, true);
 
         Crossing crossing = readCrossing(ctx, crossingId);
-        this.requestId++;
 
         if (crossing.isPriorityLock()) {
-            log.warning("Crossing request " + this.requestId + " denied because of priorityLock");
-            Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.CAR, false,
+            log.warning("Crossing request " + getRequestId(ctx) + " denied because of priorityLock");
+            Request request = new Request("" + getRequestId(ctx), crossingId, "N/A", RequesterRole.CAR, false,
                     false);
-            String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, "N/A",crossingId);
-            recordClientIdentity(ctx, "" + requestId, "N/A", crossingId,ctx.getClientIdentity().getId());
+            String compKey = createCompKey(ctx, Request.TYPE, "" + getRequestId(ctx), "N/A",crossingId);
+            recordClientIdentity(ctx, "" + getRequestId(ctx), "N/A", crossingId,ctx.getClientIdentity().getId());
             ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
             return request;
         }
@@ -175,11 +169,11 @@ public class CrossingContract implements ContractInterface {
                 .filter(lane -> readLane(ctx, lane, crossingId).isFree()).toArray(String[]::new);
 
         if (freeLanes.length == 0) {
-            log.warning("Crossing request " + this.requestId + " denied because all lanes are full");
-            Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.CAR, false,
+            log.warning("Crossing request " + getRequestId(ctx) + " denied because all lanes are full");
+            Request request = new Request("" + getRequestId(ctx), crossingId, "N/A", RequesterRole.CAR, false,
                     false);
-            recordClientIdentity(ctx, "" + requestId, "N/A", crossingId,ctx.getClientIdentity().getId());
-            String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, "N/A",crossingId );
+            recordClientIdentity(ctx, "" + getRequestId(ctx), "N/A", crossingId,ctx.getClientIdentity().getId());
+            String compKey = createCompKey(ctx, Request.TYPE, "" + getRequestId(ctx), "N/A",crossingId );
             ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
             return request;
         }
@@ -190,11 +184,11 @@ public class CrossingContract implements ContractInterface {
         String laneId = freeLanes[random];
         lockLane(ctx, laneId, crossingId, false);
         updateCrossing(ctx, crossingId, crossing.getLaneIds(), CrossingState.LOCKED.name(), false, 0L);
-        Request request = new Request("" + this.requestId, crossingId, laneId, RequesterRole.CAR, true,
+        Request request = new Request("" + getRequestId(ctx), crossingId, laneId, RequesterRole.CAR, true,
                 true);
-        String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, laneId, crossingId);
-        log.info("Crossing request " + this.requestId + " successful");
-        recordClientIdentity(ctx, "" + requestId, laneId, crossingId,ctx.getClientIdentity().getId());
+        String compKey = createCompKey(ctx, Request.TYPE, "" + getRequestId(ctx), laneId, crossingId);
+        log.info("Crossing request " + getRequestId(ctx) + " successful");
+        recordClientIdentity(ctx, "" + getRequestId(ctx), laneId, crossingId,ctx.getClientIdentity().getId());
         ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
         return request;
     }
@@ -434,5 +428,10 @@ public class CrossingContract implements ContractInterface {
         if (!Arrays.equals(hashedRequest, callerPrivateDataHash)) {
             throw new ChaincodeException("Caller identity is not authorized to release this permission");
         }
+    }
+    
+    private long getRequestId(Context ctx){
+        Random rand = new Random(ctx.getStub().getTxTimestamp().getEpochSecond());
+        return rand.nextLong();
     }
 }

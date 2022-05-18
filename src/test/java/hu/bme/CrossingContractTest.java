@@ -861,4 +861,55 @@ final class CrossingContractTest {
 
     }
     
+    @Nested
+    class FreeToCrossRenewalTest{
+        private Crossing crossing;
+        private ClientIdentity clientIdentity;
+
+        @BeforeEach
+        public void init(){
+            clientIdentity = mock(ClientIdentity.class);
+            crossing = new Crossing(crossingId, new String[] {}, CrossingState.FREE_TO_CROSS, false, 0);
+            String msp = "RailwayOrgMSP";
+            when(ctx.getClientIdentity()).thenReturn(clientIdentity);
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(clientIdentity.getId()).thenReturn(railwayAdminId);
+            when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
+            when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
+        }
+        
+        @Test
+        public void freeToCrossRenewedSuccessfully(){
+            contract.renewFreeToCrossValidity(ctx, crossingId);
+            crossing.setValidUntil(60);
+            crossing.setState(CrossingState.FREE_TO_CROSS);
+            verify(stub,times(1)).putState(crossingCompKey.toString(), crossing.toJSONString().getBytes(UTF_8));
+        }
+        @Test
+        public void freeToCrossRenewedDeniedClientNotRailwayAdmin(){
+            when(clientIdentity.getId()).thenReturn("NotRailwayAdmin");
+            Exception thrown = assertThrows(ChaincodeException.class, ()->{
+                contract.renewFreeToCrossValidity(ctx, crossingId);
+            });
+            assertTrue(thrown.getMessage().contains("Only the RailwayOrg's Admin"));
+            crossing.setValidUntil(60);
+            crossing.setState(CrossingState.FREE_TO_CROSS);
+            verify(stub,never()).putState(crossingCompKey.toString(), crossing.toJSONString().getBytes(UTF_8));
+        }
+        @Test
+        public void freeToCrossRenewedDeniedCrossingLocked(){
+            crossing.setState(CrossingState.LOCKED);
+            when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
+            when(clientIdentity.getId()).thenReturn(railwayAdminId);
+            Exception thrown = assertThrows(ChaincodeException.class, ()->{
+                contract.renewFreeToCrossValidity(ctx, crossingId);
+            });
+            assertTrue(thrown.getMessage().contains("must be in FREE_TO_CROSS"));
+            crossing.setValidUntil(60);
+            crossing.setState(CrossingState.FREE_TO_CROSS);
+            verify(stub,never()).putState(crossingCompKey.toString(), crossing.toJSONString().getBytes(UTF_8));
+        }
+        
+    }
+    
 }

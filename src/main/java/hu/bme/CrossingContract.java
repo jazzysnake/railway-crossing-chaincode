@@ -264,7 +264,7 @@ public class CrossingContract implements ContractInterface {
         assertCrossingExists(ctx, crossingId, true);
         Crossing crossing = readCrossing(ctx, crossingId);
 
-        if (crossing.getState() != CrossingState.FREE_TO_CROSS) {
+        if (!crossing.getState().equals(CrossingState.FREE_TO_CROSS)) {
             throw new ChaincodeException("Crossing must be in FREE_TO_CROSS state for this operation");
         }
 

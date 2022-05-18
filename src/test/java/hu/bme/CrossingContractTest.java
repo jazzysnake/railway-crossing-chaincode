@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -478,7 +479,7 @@ final class CrossingContractTest {
             when(ctx.getClientIdentity()).thenReturn(clientIdentity);
             when(clientIdentity.getMSPID()).thenReturn(msp);
             when(clientIdentity.getId()).thenReturn(railwayAdminId);
-            Lane lane = new Lane(laneIds[0], crossingId, 1, 0, false);
+            lane = new Lane(laneIds[0], crossingId, 1, 0, false);
             Request request = new Request(""+requestId, crossingId, "N/A", RequesterRole.TRAIN, true, true);
             CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A", crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId, "N/A", crossingId, railwayAdminId);
@@ -501,7 +502,7 @@ final class CrossingContractTest {
             try {
                 digest = MessageDigest.getInstance("SHA-256");
             } catch (NoSuchAlgorithmException e) {
-                throw new ChaincodeException("");
+                throw new RuntimeException();
             }
             byte[] hash = digest.digest(privateData.toJSONString().getBytes(UTF_8));
     
@@ -519,7 +520,7 @@ final class CrossingContractTest {
             when(ctx.getClientIdentity()).thenReturn(clientIdentity);
             when(clientIdentity.getMSPID()).thenReturn(msp);
             when(clientIdentity.getId()).thenReturn(railwayAdminId);
-            Lane lane = new Lane(laneIds[0], crossingId, 1, 0, false);
+            lane = new Lane(laneIds[0], crossingId, 1, 0, false);
             Request request = new Request(""+requestId, crossingId, "N/A", RequesterRole.TRAIN, false,false);
             CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A", crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId, "N/A", crossingId, railwayAdminId);
@@ -542,7 +543,7 @@ final class CrossingContractTest {
             try {
                 digest = MessageDigest.getInstance("SHA-256");
             } catch (NoSuchAlgorithmException e) {
-                throw new ChaincodeException("");
+                throw new RuntimeException();
             }
             byte[] hash = digest.digest(privateData.toJSONString().getBytes(UTF_8));
     
@@ -552,7 +553,7 @@ final class CrossingContractTest {
             verify(stub).putState(requestCompositeKey.toString(), request.toJSONString().getBytes(UTF_8));
             verify(stub).putState(requestPrivateDataCompositeKey.toString(), hash);
         }
-
+        
         @Test
         public void trainRequestDeniedCrossingLocked(){
             crossing.setState(CrossingState.LOCKED);
@@ -561,7 +562,7 @@ final class CrossingContractTest {
             when(ctx.getClientIdentity()).thenReturn(clientIdentity);
             when(clientIdentity.getMSPID()).thenReturn(msp);
             when(clientIdentity.getId()).thenReturn(railwayAdminId);
-            Lane lane = new Lane(laneIds[0], crossingId, 1, 0, false);
+            lane = new Lane(laneIds[0], crossingId, 1, 0,true);
             Request request = new Request(""+requestId, crossingId, "N/A", RequesterRole.TRAIN, false,false);
             CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A", crossingId);
             RequestPrivateData privateData = new RequestPrivateData(""+requestId, "N/A", crossingId, railwayAdminId);
@@ -584,7 +585,7 @@ final class CrossingContractTest {
             try {
                 digest = MessageDigest.getInstance("SHA-256");
             } catch (NoSuchAlgorithmException e) {
-                throw new ChaincodeException("");
+                throw new RuntimeException();
             }
             byte[] hash = digest.digest(privateData.toJSONString().getBytes(UTF_8));
     
@@ -593,8 +594,270 @@ final class CrossingContractTest {
             verify(stub).putState(laneCompositeKey.toString(), lane.toJSONString().getBytes(UTF_8));
             verify(stub).putState(requestCompositeKey.toString(), request.toJSONString().getBytes(UTF_8));
             verify(stub).putState(requestPrivateDataCompositeKey.toString(), hash);
+
         }
 
+        @Test
+        public void trainRequestReleasedSuccessfully(){
+            crossing.setState(CrossingState.LOCKED);
+            when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
+            ClientIdentity clientIdentity = mock(ClientIdentity.class);
+            when(ctx.getClientIdentity()).thenReturn(clientIdentity);
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(clientIdentity.getId()).thenReturn(railwayAdminId);
+            lane = new Lane(laneIds[0], crossingId, 1, 0, true);
+            Request request = new Request(""+requestId, crossingId, "N/A", RequesterRole.TRAIN, true,true);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A", crossingId);
+            CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId, "N/A", crossingId);
+            RequestPrivateData privateData = new RequestPrivateData(""+requestId, "N/A", crossingId, railwayAdminId);
+
+            MessageDigest digest;
+            try {
+                digest = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException();
+            }
+            byte[] hash = digest.digest(privateData.toJSONString().getBytes(UTF_8));
+
+            when(stub.createCompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId, "N/A", crossingId)).thenReturn(requestPrivateDataCompositeKey);
+            when(stub.createCompositeKey(Request.TYPE, ""+requestId, "N/A", crossingId)).thenReturn(requestCompositeKey);
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(lane.toJSONString().getBytes(UTF_8));
+            when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
+            when(stub.getState(requestCompositeKey.toString())).thenReturn(request.toJSONString().getBytes(UTF_8));
+            when(stub.getState(requestPrivateDataCompositeKey.toString())).thenReturn(hash);
+
+            contract.releaseTrainPermission(ctx,requestId,crossingId);
+
+            crossing.setPriorityLock(false);
+            crossing.setState(CrossingState.FREE_TO_CROSS);
+            crossing.setValidUntil(60);
+            verify(stub).putState(crossingCompKey.toString(), crossing.toJSONString().getBytes(UTF_8));
+            lane.setPriorityLock(false);
+
+            verify(stub).putState(laneCompositeKey.toString(), lane.toJSONString().getBytes(UTF_8));
+            request.setActive(false);
+            verify(stub).putState(requestCompositeKey.toString(), request.toJSONString().getBytes(UTF_8));
+        }
+
+        @Test
+        public void trainRequestReleaseDeniedIdentityMismatch(){
+            crossing.setState(CrossingState.LOCKED);
+            when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
+            ClientIdentity clientIdentity = mock(ClientIdentity.class);
+            when(ctx.getClientIdentity()).thenReturn(clientIdentity);
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(clientIdentity.getId()).thenReturn(railwayAdminId);
+            lane = new Lane(laneIds[0], crossingId, 1, 0, true);
+            Request request = new Request(""+requestId, crossingId, "N/A", RequesterRole.TRAIN, true,true);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A", crossingId);
+            CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId, "N/A", crossingId);
+            RequestPrivateData privateData = new RequestPrivateData(""+requestId, "N/A", crossingId, "notTheIdThatAcquiredThePermission");
+
+            MessageDigest digest;
+            try {
+                digest = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException();
+            }
+            byte[] hash = digest.digest(privateData.toJSONString().getBytes(UTF_8));
+
+            when(stub.createCompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId, "N/A", crossingId)).thenReturn(requestPrivateDataCompositeKey);
+            when(stub.createCompositeKey(Request.TYPE, ""+requestId, "N/A", crossingId)).thenReturn(requestCompositeKey);
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(lane.toJSONString().getBytes(UTF_8));
+            when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
+            when(stub.getState(requestCompositeKey.toString())).thenReturn(request.toJSONString().getBytes(UTF_8));
+            when(stub.getState(requestPrivateDataCompositeKey.toString())).thenReturn(hash);
+            
+            Exception thrown = assertThrows(ChaincodeException.class, () -> {
+                contract.releaseTrainPermission(ctx,requestId,crossingId);
+            });
+            assertTrue(thrown.getMessage().contains("not authorized"));
+        }
+
+    }
+    
+    @Nested
+    class CarRequestTests {
+        private String[] laneIds;
+        private Crossing crossing;
+        private final String msp = "VehicleOwnerOrgMSP";
+        private CompositeKey laneCompositeKey;
+        private Lane lane;
+        private long requestId;
+        private String clientId = "vehichleOwner";
+
+        @BeforeEach
+        void init(){
+            requestId = 1;
+            laneIds = new String[] {"01"};
+            laneCompositeKey = new CompositeKey(Lane.TYPE, laneIds[0],crossingId);
+            crossing = new Crossing(crossingId, laneIds , CrossingState.FREE_TO_CROSS, false, 0);
+            lane = new Lane(laneIds[0], crossingId, 1, 0, false);
+            when(stub.createCompositeKey(Lane.TYPE, laneIds[0],crossingId)).thenReturn(laneCompositeKey);
+            when(stub.createCompositeKey(Crossing.TYPE, crossingId)).thenReturn(crossingCompKey);
+        }
+
+        @Test
+        public void carRequestGranted(){
+            when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
+            ClientIdentity clientIdentity = mock(ClientIdentity.class);
+            when(ctx.getClientIdentity()).thenReturn(clientIdentity);
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(clientIdentity.getId()).thenReturn(clientId);
+            lane = new Lane(laneIds[0], crossingId, 1, 0, false);
+            Request request = new Request(""+requestId, crossingId,laneIds[0], RequesterRole.CAR, true, true);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, laneIds[0],crossingId);
+            RequestPrivateData privateData = new RequestPrivateData(""+requestId, laneIds[0], crossingId, clientId);
+            CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,laneIds[0], crossingId);
+
+            when(stub.createCompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId, laneIds[0], crossingId)).thenReturn(requestPrivateDataCompositeKey);
+            when(stub.createCompositeKey(Request.TYPE, ""+requestId, laneIds[0],crossingId)).thenReturn(requestCompositeKey);
+
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(lane.toJSONString().getBytes(UTF_8));
+            when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
+
+            Request returnedRequest = contract.requestCarCrossing(ctx, crossingId);
+
+            assertTrue(returnedRequest.isGranted());
+
+            crossing.setState(CrossingState.LOCKED);
+            verify(stub).putState(crossingCompKey.toString(), crossing.toJSONString().getBytes(UTF_8));
+            MessageDigest digest;
+            try {
+                digest = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException();
+            }
+            byte[] hash = digest.digest(privateData.toJSONString().getBytes(UTF_8));
+    
+            
+            lane.setOccupied(1);
+            verify(stub).putState(laneCompositeKey.toString(), lane.toJSONString().getBytes(UTF_8));
+            verify(stub).putState(requestCompositeKey.toString(), request.toJSONString().getBytes(UTF_8));
+            verify(stub).putState(requestPrivateDataCompositeKey.toString(), hash);
+        }
+
+        @Test
+        public void carRequestDeniedAllLanesOccupied(){
+            crossing.setState(CrossingState.LOCKED);
+            when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
+            ClientIdentity clientIdentity = mock(ClientIdentity.class);
+            when(ctx.getClientIdentity()).thenReturn(clientIdentity);
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(clientIdentity.getId()).thenReturn(clientId);
+            lane = new Lane(laneIds[0], crossingId, 1,1, false);
+            Request request = new Request(""+requestId, crossingId,"N/A", RequesterRole.CAR,false,false);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId, "N/A",crossingId);
+            RequestPrivateData privateData = new RequestPrivateData(""+requestId,"N/A", crossingId, clientId);
+            CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,"N/A", crossingId);
+
+            when(stub.createCompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,"N/A", crossingId)).thenReturn(requestPrivateDataCompositeKey);
+            when(stub.createCompositeKey(Request.TYPE, ""+requestId, "N/A",crossingId)).thenReturn(requestCompositeKey);
+
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(lane.toJSONString().getBytes(UTF_8));
+            when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
+
+            Request returnedRequest = contract.requestCarCrossing(ctx, crossingId);
+
+            assertFalse(returnedRequest.isGranted());
+
+            verify(stub,never()).putState(crossingCompKey.toString(), crossing.toJSONString().getBytes(UTF_8));
+            MessageDigest digest;
+            try {
+                digest = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException();
+            }
+            byte[] hash = digest.digest(privateData.toJSONString().getBytes(UTF_8));
+    
+            
+            lane.setOccupied(1);
+            verify(stub,never()).putState(laneCompositeKey.toString(), lane.toJSONString().getBytes(UTF_8));
+            verify(stub).putState(requestCompositeKey.toString(), request.toJSONString().getBytes(UTF_8));
+            verify(stub).putState(requestPrivateDataCompositeKey.toString(), hash);
+        }
+
+        @Test
+        public void carRequestDeniedCrossingPriorityLocked(){
+            crossing.setState(CrossingState.LOCKED);
+            crossing.setPriorityLock(true);
+            when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
+            ClientIdentity clientIdentity = mock(ClientIdentity.class);
+            when(ctx.getClientIdentity()).thenReturn(clientIdentity);
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(clientIdentity.getId()).thenReturn(clientId);
+            lane = new Lane(laneIds[0], crossingId, 1,0,true);
+            Request request = new Request(""+requestId, crossingId,"N/A", RequesterRole.CAR,false,false);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId,"N/A", crossingId);
+            RequestPrivateData privateData = new RequestPrivateData(""+requestId,"N/A", crossingId, clientId);
+            CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,"N/A", crossingId);
+
+            when(stub.createCompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,"N/A", crossingId)).thenReturn(requestPrivateDataCompositeKey);
+            when(stub.createCompositeKey(Request.TYPE, ""+requestId, "N/A",crossingId)).thenReturn(requestCompositeKey);
+
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(lane.toJSONString().getBytes(UTF_8));
+            when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
+
+            Request returnedRequest = contract.requestCarCrossing(ctx, crossingId);
+
+            assertFalse(returnedRequest.isGranted());
+
+            verify(stub,never()).putState(crossingCompKey.toString(), crossing.toJSONString().getBytes(UTF_8));
+            MessageDigest digest;
+            try {
+                digest = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException();
+            }
+            byte[] hash = digest.digest(privateData.toJSONString().getBytes(UTF_8));
+    
+            
+            lane.setOccupied(1);
+            verify(stub,never()).putState(laneCompositeKey.toString(), lane.toJSONString().getBytes(UTF_8));
+            verify(stub).putState(requestCompositeKey.toString(), request.toJSONString().getBytes(UTF_8));
+            verify(stub).putState(requestPrivateDataCompositeKey.toString(), hash);
+        }
+
+        @Test
+        public void carRequestReleasedSuccessfully(){
+            crossing.setState(CrossingState.LOCKED);
+            when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
+            ClientIdentity clientIdentity = mock(ClientIdentity.class);
+            when(ctx.getClientIdentity()).thenReturn(clientIdentity);
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(clientIdentity.getId()).thenReturn(clientId);
+            lane = new Lane(laneIds[0], crossingId, 1, 1, false);
+            Request request = new Request(""+requestId, crossingId,laneIds[0], RequesterRole.CAR, true, false);
+            CompositeKey requestCompositeKey = new CompositeKey(Request.TYPE, "" + this.requestId,laneIds[0], crossingId);
+            RequestPrivateData privateData = new RequestPrivateData(""+requestId, laneIds[0], crossingId, clientId);
+            CompositeKey requestPrivateDataCompositeKey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,laneIds[0], crossingId);
+
+            MessageDigest digest;
+            try {
+                digest = MessageDigest.getInstance("SHA-256");
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException();
+            }
+            byte[] hash = digest.digest(privateData.toJSONString().getBytes(UTF_8));
+
+            when(stub.createCompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,laneIds[0], crossingId)).thenReturn(requestPrivateDataCompositeKey);
+            when(stub.createCompositeKey(Request.TYPE, ""+requestId,laneIds[0],crossingId)).thenReturn(requestCompositeKey);
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(lane.toJSONString().getBytes(UTF_8));
+            when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
+            when(stub.getState(requestCompositeKey.toString())).thenReturn(request.toJSONString().getBytes(UTF_8));
+            when(stub.getState(requestPrivateDataCompositeKey.toString())).thenReturn(hash);
+
+            contract.releaseCarPermission(ctx,requestId,crossingId,laneIds[0]);
+
+            crossing.setState(CrossingState.FREE_TO_CROSS);
+            crossing.setValidUntil(60);
+            verify(stub).putState(crossingCompKey.toString(), crossing.toJSONString().getBytes(UTF_8));
+            lane.setOccupied(0);
+
+            verify(stub).putState(laneCompositeKey.toString(), lane.toJSONString().getBytes(UTF_8));
+            request.setActive(false);
+            verify(stub).putState(requestCompositeKey.toString(), request.toJSONString().getBytes(UTF_8));
+        }
 
     }
     

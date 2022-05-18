@@ -160,14 +160,13 @@ public class CrossingContract implements ContractInterface {
 
         Crossing crossing = readCrossing(ctx, crossingId);
         this.requestId++;
-        recordClientIdentity(ctx, "" + requestId, "N/A", crossingId,ctx.getClientIdentity().getId());
 
-        String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, crossingId, "N/A");
         if (crossing.isPriorityLock()) {
             log.warning("Crossing request " + this.requestId + " denied because of priorityLock");
             Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.CAR, false,
                     false);
-
+            String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, "N/A",crossingId);
+            recordClientIdentity(ctx, "" + requestId, "N/A", crossingId,ctx.getClientIdentity().getId());
             ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
             return request;
         }
@@ -179,6 +178,8 @@ public class CrossingContract implements ContractInterface {
             log.warning("Crossing request " + this.requestId + " denied because all lanes are full");
             Request request = new Request("" + this.requestId, crossingId, "N/A", RequesterRole.CAR, false,
                     false);
+            recordClientIdentity(ctx, "" + requestId, "N/A", crossingId,ctx.getClientIdentity().getId());
+            String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, "N/A",crossingId );
             ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
             return request;
         }
@@ -191,8 +192,9 @@ public class CrossingContract implements ContractInterface {
         updateCrossing(ctx, crossingId, crossing.getLaneIds(), CrossingState.LOCKED.name(), false, 0L);
         Request request = new Request("" + this.requestId, crossingId, laneId, RequesterRole.CAR, true,
                 true);
-        compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, crossingId, laneId);
+        String compKey = createCompKey(ctx, Request.TYPE, "" + this.requestId, laneId, crossingId);
         log.info("Crossing request " + this.requestId + " successful");
+        recordClientIdentity(ctx, "" + requestId, laneId, crossingId,ctx.getClientIdentity().getId());
         ctx.getStub().putState(compKey, request.toJSONString().getBytes(UTF_8));
         return request;
     }
@@ -202,6 +204,7 @@ public class CrossingContract implements ContractInterface {
         assertCallingOrg(ctx, RAILWAY_ORG_MSP);
         assertCrossingExists(ctx, crossingId, true);
         assertRequestExists(ctx, requestId, "N/A", crossingId);
+        assertReleaserIdentity(ctx, requestId, crossingId, "N/A");
 
         String compKey = createCompKey(ctx, Request.TYPE, "" + requestId, "N/A", crossingId);
         Request request = Request.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
@@ -227,10 +230,10 @@ public class CrossingContract implements ContractInterface {
         assertCallingOrg(ctx, VEHICLE_OWNER_MSP);
         assertCrossingExists(ctx, crossingId, true);
         assertLaneExists(ctx, laneId, crossingId, true);
-        assertRequestExists(ctx, requestId, laneId, crossingId);
+        assertRequestExists(ctx, requestId,laneId,crossingId);
+        assertReleaserIdentity(ctx, requestId, crossingId, laneId);
 
-        // TODO check caller identity
-        String compKey = createCompKey(ctx, Request.TYPE, "" + requestId, crossingId, laneId);
+        String compKey = createCompKey(ctx, Request.TYPE, "" + requestId,laneId,crossingId);
         Request request = Request.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));
         request.setActive(false);
 
@@ -402,7 +405,7 @@ public class CrossingContract implements ContractInterface {
         try {
             digest = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
-            throw new ChaincodeException("");
+            throw new ChaincodeException("Unexpected crypto exception occured");
         }
         byte[] hash = digest.digest(priv.toJSONString().getBytes(UTF_8));
         ctx.getStub().putState(compKey, hash);
@@ -413,5 +416,23 @@ public class CrossingContract implements ContractInterface {
             throw new ChaincodeException("Only the RailwayOrg's Admin can perform this operation");
         }
         
+    }
+
+    private void assertReleaserIdentity(Context ctx, long requestId, String crossingId, String laneId){
+        assertRequestExists(ctx, requestId, laneId, crossingId);
+        String clientId = ctx.getClientIdentity().getId();
+        String privDataCompKey = ctx.getStub().createCompositeKey(RequestPrivateData.COLLECTION_NAME, requestId+"",laneId,crossingId).toString();
+        byte[] hashedRequest = ctx.getStub().getState(privDataCompKey);
+        RequestPrivateData callerPrivateData = new RequestPrivateData(""+requestId, laneId, crossingId, clientId);
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new ChaincodeException("Unexpected crypto exception occured");
+        }
+        byte[] callerPrivateDataHash = digest.digest(callerPrivateData.toJSONString().getBytes(UTF_8));
+        if (!Arrays.equals(hashedRequest, callerPrivateDataHash)) {
+            throw new ChaincodeException("Caller identity is not authorized to release this permission");
+        }
     }
 }

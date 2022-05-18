@@ -22,7 +22,11 @@ import org.hyperledger.fabric.contract.annotation.License;
 import org.hyperledger.fabric.contract.annotation.Transaction;
 import org.hyperledger.fabric.shim.ChaincodeException;
 
-@Contract(name = "CrossingContract", info = @Info(title = "Crossing contract", description = "My Smart Contract", version = "0.0.1", license = @License(name = "Apache-2.0", url = ""), contact = @Contact(email = "railway-crossing@example.com", name = "railway-crossing", url = "http://railway-crossing.me")))
+@Contract(name = "CrossingContract", info = @Info(title = "Crossing contract",
+description = "Chaincode to manage the crossing of autonomous vechicles and trains through unguarded level crossings",
+version = "0.0.1", 
+license = @License(name = "Apache-2.0", url = ""), 
+contact = @Contact(email = "", name = "railway-crossing", url = "")))
 @Default
 public class CrossingContract implements ContractInterface {
     private static final int CROSSING_VALIDITY_DURATION_S = 60;

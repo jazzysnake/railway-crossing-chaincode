@@ -107,7 +107,7 @@ final class CrossingContractTest {
             when(clientIdentity.getMSPID()).thenReturn(msp);
             when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
 
-            Crossing cross = new Crossing(crossingId, laneIds, crossing.getState(), crossing.isPriorityLock(), 0+300*60);
+            Crossing cross = new Crossing(crossingId, laneIds, crossing.getState(), crossing.isPriorityLock(),60);
             String json = cross.toJSONString();
             contract.createCrossing(ctx, crossingId, laneIds, 1);
 
@@ -234,68 +234,181 @@ final class CrossingContractTest {
         }
     }
     
-    //@Nested
-    //public class PrivateDataTest{
-    //    long requestId = 1;
-    //    @Test
-    //    public void savingPrivateDataValid(){
-    //        CompositeKey compkey = new CompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,"N/A",crossingId);
-    //        when(stub.createCompositeKey(RequestPrivateData.COLLECTION_NAME, ""+requestId,"N/A",crossingId))
-    //        .thenReturn(compkey);
-    //        contract.recordClientIdentity(ctx, ""+requestId, "N/A", crossingId,railwayAdminId);
-    //        ClientIdentity clientIdentity = mock(ClientIdentity.class);
-    //        when(clientIdentity.getId()).thenReturn(railwayAdminId);
-    //        verify(stub).putPrivateData(RequestPrivateData.COLLECTION_NAME, compkey.toString(), railwayAdminId.getBytes(UTF_8));
-    //    }
-    //}
+    @Nested
+    final class LaneExistsTest{
+        private CompositeKey laneCompositeKey;
+        private final String laneId = "01";
+        
+        @Test
+        public void noProperLane(){
+            laneCompositeKey = new CompositeKey(Lane.TYPE, laneId,crossingId);
 
-    //@Nested
-    //class AssetUpdates {
-    //    @Test
-    //    public void updateExisting() {
-    //        CrossingContract contract = new  CrossingContract();
-    //        Context ctx = mock(Context.class);
-    //        ChaincodeStub stub = mock(ChaincodeStub.class);
-    //        when(ctx.getStub()).thenReturn(stub);
-    //        when(stub.getState("10001")).thenReturn(new byte[] { 42 });
+            when(stub.createCompositeKey(Lane.TYPE, laneId,crossingId)).thenReturn(laneCompositeKey);
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(new byte[] {});
 
-    //        //contract.updateCrossing(ctx, "10001", "updates");
+            boolean result = contract.laneExists(ctx,laneId,crossingId);
 
-    //        String json = "{\"value\":\"updates\"}";
-    //        verify(stub).putState("10001", json.getBytes(UTF_8));
-    //    }
+            assertFalse(result);
+        }
 
-    //    @Test
-    //    public void updateMissing() {
-    //        CrossingContract contract = new  CrossingContract();
-    //        Context ctx = mock(Context.class);
-    //        ChaincodeStub stub = mock(ChaincodeStub.class);
-    //        when(ctx.getStub()).thenReturn(stub);
+        @Test
+        public void laneExists() {
 
-    //        when(stub.getState("10001")).thenReturn(null);
+            laneCompositeKey = new CompositeKey(Lane.TYPE, laneId,crossingId);
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(new byte[] {42});
+            when(stub.createCompositeKey(Lane.TYPE, laneId,crossingId)).thenReturn(laneCompositeKey);
+            boolean result = contract.laneExists(ctx,laneId, crossingId);
+            assertTrue(result);
+        }
 
-    //        Exception thrown = assertThrows(RuntimeException.class, () -> {
-    //            //contract.updateCrossing(ctx, "10001", "TheCrossing");
-    //        });
+        @Test
+        public void noKey() {
+            String cId = "002";
+            CompositeKey compositeKey = new CompositeKey(Lane.TYPE, laneId,cId);
+            when(stub.createCompositeKey(Crossing.TYPE, cId)).thenReturn(compositeKey);
 
-    //        assertEquals(thrown.getMessage(), "The asset 10001 does not exist");
-    //    }
+            when(stub.getState(compositeKey.toString())).thenReturn(null);
+            boolean result = contract.crossingExists(ctx,cId);
 
-    //}
+            assertFalse(result);
 
-    //@Test
-    //public void assetDelete() {
-    //    CrossingContract contract = new  CrossingContract();
-    //    Context ctx = mock(Context.class);
-    //    ChaincodeStub stub = mock(ChaincodeStub.class);
-    //    when(ctx.getStub()).thenReturn(stub);
-    //    when(stub.getState("10001")).thenReturn(null);
+        }
 
-    //    Exception thrown = assertThrows(RuntimeException.class, () -> {
-    //        contract.deleteCrossing(ctx, "10001");
-    //    });
+    }
+    
+    @Nested
+    final class CreateLanes{
+        
+        private String laneId;
+        private Crossing crossing;
+        private final String msp = "RailwayOrgMSP";
+        private CompositeKey laneCompositeKey;
 
-    //    assertEquals(thrown.getMessage(), "The asset 10001 does not exist");
-    //}
+        @BeforeEach
+        void initCreation(){
+            laneId = "01";
+            laneCompositeKey = new CompositeKey(Lane.TYPE,laneId,crossingId);
+            crossing = new Crossing(crossingId, new String[] {}, CrossingState.FREE_TO_CROSS, false, 0);
+            when(stub.createCompositeKey(Lane.TYPE, laneId,crossingId)).thenReturn(laneCompositeKey);
+        }
 
+        @Test
+        public void newLaneCreate() {
+
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(new byte[] {});
+            when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
+            ClientIdentity clientIdentity = mock(ClientIdentity.class);
+            when(clientIdentity.getId()).thenReturn(railwayAdminId);
+            when(ctx.getClientIdentity()).thenReturn(clientIdentity);
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(stub.getTxTimestamp()).thenReturn(Instant.ofEpochMilli(0));
+
+            Lane lane = new Lane(laneId, crossingId, 1, 0, false);
+            Crossing updatedCrossing = new Crossing(crossingId, new String[] {laneId}, crossing.getState(), false, 60);
+            contract.createLane(ctx, laneId, crossingId, lane.getCapacity());
+
+            verify(stub).putState(crossingCompKey.toString(), updatedCrossing.toJSONString().getBytes(UTF_8));
+            verify(stub).putState(laneCompositeKey.toString(), lane.toJSONString().getBytes(UTF_8));
+        }
+
+        @Test
+        public void alreadyExists() {
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(new byte[] { 42 });
+            when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] { 42 });
+            ClientIdentity clientIdentity = mock(ClientIdentity.class);
+            when(ctx.getClientIdentity()).thenReturn(clientIdentity);
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(clientIdentity.getId()).thenReturn(railwayAdminId);
+
+            Exception thrown = assertThrows(ChaincodeException.class, () -> {
+                contract.createLane(ctx, laneId, crossingId, 0);
+            });
+
+            assertTrue(thrown.getMessage().contains("already exists"));
+        }
+        
+        @Test
+        public void notFromRailwayOrg(){
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(new byte[] { 42 });
+            when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] { 42 });
+            ClientIdentity clientIdentity = mock(ClientIdentity.class);
+            when(ctx.getClientIdentity()).thenReturn(clientIdentity);
+            when(clientIdentity.getMSPID()).thenReturn("notRail");
+            when(clientIdentity.getId()).thenReturn(railwayAdminId);
+
+            Exception thrown = assertThrows(ChaincodeException.class, () -> {
+                contract.createLane(ctx, laneId, crossingId, 0);
+            });
+            String errorMessage = "Must be part of " + msp + " to perform this operation";
+            assertEquals(errorMessage, thrown.getMessage());
+        }
+        
+    }
+    
+    @Nested
+    class LaneDeletes {
+        private String laneId;
+        private CompositeKey laneCompositeKey;
+        private ClientIdentity clientIdentity;
+
+        @BeforeEach
+        void initDeletion(){
+            laneId = "01";
+            laneCompositeKey = new CompositeKey(Lane.TYPE, laneId,crossingId);
+            when(stub.createCompositeKey(Lane.TYPE, laneId,crossingId)).thenReturn(laneCompositeKey);
+            clientIdentity = mock(ClientIdentity.class);
+            when(ctx.getClientIdentity()).thenReturn(clientIdentity);
+        }
+
+        @Test
+        public void deleteValid(){
+            String msp = "RailwayOrgMSP";
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(clientIdentity.getId()).thenReturn(railwayAdminId);
+
+            Lane lane = new Lane(laneId, crossingId, 1, 0, false);
+            Crossing crossing = new Crossing(crossingId, new String[] {laneId}, CrossingState.FREE_TO_CROSS, false, 0);
+
+            when(stub.getState(laneCompositeKey.toString())).thenReturn(lane.toJSONString().getBytes(UTF_8));
+            when(stub.getState(crossingCompKey.toString())).thenReturn(crossing.toJSONString().getBytes(UTF_8));
+
+            contract.deleteLane(ctx,laneId, crossingId);
+            
+            crossing.setLaneIds(new String[] {});
+            verify(stub,times(1)).delState(laneCompositeKey.toString());
+            verify(stub,times(1)).putState(crossingCompKey.toString(),crossing.toJSONString().getBytes(UTF_8));
+        }
+        @Test
+        public void deleteNonExistent(){
+            String msp = "RailwayOrgMSP";
+            String nonExistentLane = "nonExistentLane";
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(clientIdentity.getId()).thenReturn(railwayAdminId);
+
+            CompositeKey nonExistentCompositeKey = new CompositeKey(Lane.TYPE, nonExistentLane,crossingId);
+            when(stub.getState(nonExistentCompositeKey.toString())).thenReturn(new byte[] {});
+            when(stub.createCompositeKey(Lane.TYPE, nonExistentLane,crossingId)).thenReturn(nonExistentCompositeKey);
+
+            Exception thrown = assertThrows(ChaincodeException.class,() -> {
+                contract.deleteLane(ctx, nonExistentLane, crossingId);
+            });
+            assertTrue(thrown.getMessage().contains("doesn't exist"));
+        }
+
+        @Test
+        public void deleteNotAuthorized(){
+            String msp = "NotRailwayOrgMSP";
+            when(clientIdentity.getMSPID()).thenReturn(msp);
+            when(stub.getState(crossingCompKey.toString())).thenReturn(new byte[] {});
+
+            Exception thrown = assertThrows(ChaincodeException.class,() -> {
+                contract.deleteLane(ctx, laneId, crossingId);
+            });
+            String errorMessage = "Must be part of " + "RailwayOrgMSP"+ " to perform this operation";
+            assertEquals(errorMessage, thrown.getMessage());
+            
+        }
+    }
+    
+    
 }

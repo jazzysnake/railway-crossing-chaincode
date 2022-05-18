@@ -103,6 +103,7 @@ public class CrossingContract implements ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public Lane readLane(final Context ctx, final String laneId, final String crossingId) {
+        assertCrossingExists(ctx, crossingId, true);
         assertLaneExists(ctx, laneId, crossingId, true);
         final String compKey = createCompKey(ctx, Lane.TYPE, laneId, crossingId);
         return Lane.fromJSONString(new String(ctx.getStub().getState(compKey), UTF_8));

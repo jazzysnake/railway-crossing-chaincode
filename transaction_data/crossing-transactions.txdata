@@ -69,5 +69,21 @@
             "001"
         ],
         "transientData": {}
+    },
+    {
+        "transactionName": "requestTrainCrossing",
+        "transactionLabel": "requestTrainCrossing basic",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "requestCarCrossing",
+        "transactionLabel": "requestCarCrossing basic",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
     }
 ]

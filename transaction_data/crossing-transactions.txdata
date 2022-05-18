@@ -26,29 +26,6 @@
         "transientData": {}
     },
     {
-        "transactionName": "updateCrossing",
-        "transactionLabel": "updateCrossing FREE_TO_CROSS",
-        "arguments": [
-            "001",
-            [],
-            "FREE_TO_CROSS",
-            false,
-            123
-        ],
-        "transientData": {}
-    },
-    {
-        "transactionName": "updateCrossing",
-        "transactionLabel": "updateCrossing LOCKED",
-        "arguments": [
-            "001",
-            ["some other value"],
-            "LOCKED",
-            "false"
-        ],
-        "transientData": {}
-    },
-    {
         "transactionName": "deleteCrossing",
         "transactionLabel": "deleteCrossing basic",
         "arguments": [
@@ -81,30 +58,6 @@
         "arguments": [
             "01",
             "001"
-        ],
-        "transientData": {}
-    },
-    {
-        "transactionName": "updateLane",
-        "transactionLabel": "updateLane priorityLock ON",
-        "arguments": [
-            "01",
-            "001",
-            1,
-            0,
-            "true"
-        ],
-        "transientData": {}
-    },
-    {
-        "transactionName": "updateLane",
-        "transactionLabel": "updateLane priorityLock OFF",
-        "arguments": [
-            "01",
-            "001",
-            1,
-            0,
-            "true"
         ],
         "transientData": {}
     },

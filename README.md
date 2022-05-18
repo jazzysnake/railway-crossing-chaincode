@@ -28,4 +28,5 @@ static analysis of the code by running the sonarqube gradle task, according to t
 
 ## Documentation
 
-The project is a work in progress, all documentation is available [here](/docs/).
+The assignement details and documentation can be found in pdf and markdown form [here](/docs/). 
+It can also be viewed online on [hackmd](https://hackmd.io/@hacktap123/ryY-Ollr9)

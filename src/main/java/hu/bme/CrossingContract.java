@@ -246,9 +246,9 @@ public class CrossingContract implements ContractInterface {
             }
         }
 
-        Lane[] freeLanes = Arrays.stream(lanes).filter(Lane::isFree).toArray(Lane[]::new);
-        if (freeLanes.length == lanes.length) {
-            updateCrossing(ctx, crossingId, crossing.getLaneIds(), CrossingState.FREE_TO_CROSS.name(), false,
+        Lane[] emptyLanes = Arrays.stream(lanes).filter(lane -> lane.getOccupied()==0).toArray(Lane[]::new);
+        if (emptyLanes.length == lanes.length) {
+            updateCrossing(ctx, crossingId, crossing.getLaneIds(), CrossingState.FREE_TO_CROSS.name(), crossing.isPriorityLock(),
                     calcValidity(ctx));
         }
 
